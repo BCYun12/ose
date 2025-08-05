@@ -373,3 +373,149 @@ header p {
     background: #f8f9fa;
     border-radius: 5px;
 }
+
+/* Room List */
+.room-refresh {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 10px;
+}
+
+.rooms-container {
+    margin-bottom: 30px;
+}
+
+.room-card {
+    background: white;
+    border: 2px solid #dee2e6;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 15px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.room-card:hover {
+    border-color: #667eea;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.room-card.offline {
+    opacity: 0.6;
+    border-color: #dc3545;
+    cursor: not-allowed;
+}
+
+.room-card.offline:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.room-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+}
+
+.room-title {
+    color: #333;
+    font-weight: bold;
+    font-size: 18px;
+    margin: 0;
+}
+
+.room-status {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.room-status.online {
+    background: #28a745;
+    color: white;
+}
+
+.room-status.offline {
+    background: #dc3545;
+    color: white;
+}
+
+.room-details {
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+.room-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: #999;
+}
+
+.room-participants {
+    font-weight: bold;
+}
+
+.empty-rooms {
+    text-align: center;
+    color: #666;
+    font-style: italic;
+    padding: 40px;
+    background: #f8f9fa;
+    border-radius: 10px;
+}
+
+.manual-join {
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 2px solid #f8f9fa;
+}
+
+.manual-join h3 {
+    color: #666;
+    font-size: 16px;
+    margin-bottom: 15px;
+}
+
+.manual-join .form-group {
+    display: flex;
+    gap: 10px;
+}
+
+.manual-join input {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+/* Responsive adjustments for room list */
+@media (max-width: 768px) {
+    .room-refresh {
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
+    }
+    
+    .room-header {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .room-meta {
+        flex-direction: column;
+        gap: 5px;
+        text-align: center;
+    }
+    
+    .manual-join .form-group {
+        flex-direction: column;
+    }
+}

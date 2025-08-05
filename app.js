@@ -50,6 +50,11 @@ class OSEApp {
         this.showScreen('joinRoom');
     }
 
+    showRoomList() {
+        this.showScreen('roomList');
+        this.loadRoomList();
+    }
+
     showLoadingScreen() {
         this.showScreen('loadingScreen');
     }
@@ -101,8 +106,12 @@ class OSEApp {
                     isHost: true
                 });
                 
+                // Save room to localStorage for room list
+                this.saveRoomToStorage();
+                
                 this.setupRoomUI();
                 this.showChatRoom();
+                this.startActivityUpdater();
                 this.addSystemMessage(`Room created! Share this Room ID: ${id}`);
             });
 
@@ -423,6 +432,169 @@ class OSEApp {
         document.body.appendChild(audio);
     }
 
+    // Room List Functions
+    saveRoomToStorage() {
+        const rooms = this.getRoomsFromStorage();
+        const roomInfo = {
+            id: this.currentRoom,
+            title: this.roomData.title,
+            language: this.roomData.language,
+            level: this.roomData.level,
+            host: this.roomData.host,
+            maxParticipants: this.roomData.maxParticipants,
+            currentParticipants: this.roomData.participants.size,
+            createdAt: Date.now(),
+            lastActive: Date.now()
+        };
+        
+        rooms[this.currentRoom] = roomInfo;
+        localStorage.setItem('ose_rooms', JSON.stringify(rooms));
+    }
+
+    getRoomsFromStorage() {
+        try {
+            const stored = localStorage.getItem('ose_rooms');
+            return stored ? JSON.parse(stored) : {};
+        } catch (e) {
+            return {};
+        }
+    }
+
+    updateRoomActivity() {
+        if (this.currentRoom && this.isHost) {
+            const rooms = this.getRoomsFromStorage();
+            if (rooms[this.currentRoom]) {
+                rooms[this.currentRoom].lastActive = Date.now();
+                rooms[this.currentRoom].currentParticipants = this.roomData.participants.size;
+                localStorage.setItem('ose_rooms', JSON.stringify(rooms));
+            }
+        }
+    }
+
+    loadRoomList() {
+        const rooms = this.getRoomsFromStorage();
+        const activeRoomsContainer = document.getElementById('activeRooms');
+        const roomCountElement = document.getElementById('roomCount');
+        
+        // Clean up old rooms (older than 1 hour)
+        const oneHourAgo = Date.now() - (60 * 60 * 1000);
+        Object.keys(rooms).forEach(roomId => {
+            if (rooms[roomId].lastActive < oneHourAgo) {
+                delete rooms[roomId];
+            }
+        });
+        localStorage.setItem('ose_rooms', JSON.stringify(rooms));
+        
+        const roomList = Object.values(rooms);
+        roomCountElement.textContent = `${roomList.length} active rooms`;
+        
+        if (roomList.length === 0) {
+            activeRoomsContainer.innerHTML = `
+                <div class="empty-rooms">
+                    <p>No active rooms found.</p>
+                    <p>Be the first to create one!</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Sort by most recent activity
+        roomList.sort((a, b) => b.lastActive - a.lastActive);
+        
+        activeRoomsContainer.innerHTML = roomList.map(room => {
+            const isRecent = (Date.now() - room.lastActive) < (5 * 60 * 1000); // 5 minutes
+            const timeAgo = this.formatTimeAgo(room.lastActive);
+            
+            return `
+                <div class="room-card ${isRecent ? 'online' : 'offline'}" onclick="joinRoomFromList('${room.id}')">
+                    <div class="room-header">
+                        <h3 class="room-title">${this.escapeHtml(room.title)}</h3>
+                        <span class="room-status ${isRecent ? 'online' : 'offline'}">
+                            ${isRecent ? 'ONLINE' : 'OFFLINE'}
+                        </span>
+                    </div>
+                    <div class="room-details">
+                        ${this.capitalizeFirst(room.language)} • ${this.capitalizeFirst(room.level)} • Host: ${this.escapeHtml(room.host)}
+                    </div>
+                    <div class="room-meta">
+                        <span class="room-participants">
+                            ${room.currentParticipants}/${room.maxParticipants} participants
+                        </span>
+                        <span class="room-time">Last active: ${timeAgo}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    formatTimeAgo(timestamp) {
+        const now = Date.now();
+        const diff = now - timestamp;
+        
+        if (diff < 60000) return 'just now';
+        if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+        if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+        return `${Math.floor(diff / 86400000)}d ago`;
+    }
+
+    async joinRoomFromList(roomId) {
+        const guestName = prompt('Enter your name:');
+        if (!guestName || !guestName.trim()) return;
+        
+        this.userName = guestName.trim();
+        this.isHost = false;
+        this.currentRoom = roomId;
+        
+        this.showLoadingScreen();
+        
+        try {
+            // Initialize PeerJS
+            this.peer = new Peer({
+                host: 'peerjs-server.herokuapp.com',
+                port: 443,
+                path: '/',
+                secure: true
+            });
+
+            this.peer.on('open', (id) => {
+                // Connect to the host
+                const conn = this.peer.connect(roomId);
+                
+                conn.on('open', () => {
+                    this.handleNewConnection(conn);
+                    
+                    // Send join request
+                    conn.send({
+                        type: 'join_request',
+                        name: guestName,
+                        peerId: id
+                    });
+                });
+
+                conn.on('error', (err) => {
+                    console.error('Connection error:', err);
+                    alert('Failed to join room. The room might be offline.');
+                    this.showRoomList();
+                });
+            });
+
+            this.peer.on('call', (call) => {
+                this.handleIncomingCall(call);
+            });
+
+            this.peer.on('error', (err) => {
+                console.error('Peer error:', err);
+                alert('Failed to join room. Please try again.');
+                this.showRoomList();
+            });
+
+        } catch (error) {
+            console.error('Error joining room:', error);
+            alert('Failed to join room. Please try again.');
+            this.showRoomList();
+        }
+    }
+
     // Utility Functions
     broadcastToAll(data) {
         this.connections.forEach((conn) => {
@@ -478,15 +650,35 @@ class OSEApp {
             audio.remove();
         });
 
+        // Remove from localStorage if host
+        if (this.isHost && this.currentRoom) {
+            const rooms = this.getRoomsFromStorage();
+            delete rooms[this.currentRoom];
+            localStorage.setItem('ose_rooms', JSON.stringify(rooms));
+        }
+
         // Reset state
         this.currentRoom = null;
         this.roomData = {};
         this.userName = '';
         this.isHost = false;
 
+        // Clear activity updater
+        if (this.activityUpdater) {
+            clearInterval(this.activityUpdater);
+            this.activityUpdater = null;
+        }
+
         // Clear UI
         document.getElementById('chatMessages').innerHTML = '';
         document.getElementById('participantList').innerHTML = '';
+    }
+
+    startActivityUpdater() {
+        // Update room activity every 30 seconds
+        this.activityUpdater = setInterval(() => {
+            this.updateRoomActivity();
+        }, 30000);
     }
 }
 
@@ -503,6 +695,27 @@ function showCreateRoom() {
 
 function showJoinRoom() {
     app.showJoinRoom();
+}
+
+function showRoomList() {
+    app.showRoomList();
+}
+
+function refreshRoomList() {
+    app.loadRoomList();
+}
+
+function joinRoomFromList(roomId) {
+    app.joinRoomFromList(roomId);
+}
+
+function joinManualRoom() {
+    const roomId = document.getElementById('manualRoomId').value.trim();
+    if (roomId) {
+        app.joinRoomFromList(roomId);
+    } else {
+        alert('Please enter a Room ID');
+    }
 }
 
 function sendMessage() {

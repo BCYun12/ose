@@ -19,6 +19,33 @@
             <div class="menu-buttons">
                 <button class="btn primary" onclick="showCreateRoom()">Create Room</button>
                 <button class="btn secondary" onclick="showJoinRoom()">Join Room</button>
+                <button class="btn secondary" onclick="showRoomList()">Browse Rooms</button>
+            </div>
+        </div>
+
+        <!-- Room List -->
+        <div id="roomList" class="screen hidden">
+            <h2>Active Rooms</h2>
+            <div class="room-refresh">
+                <button class="btn secondary" onclick="refreshRoomList()">🔄 Refresh</button>
+                <span id="roomCount">Loading...</span>
+            </div>
+            
+            <div id="activeRooms" class="rooms-container">
+                <!-- Rooms will be populated here -->
+            </div>
+            
+            <div class="button-group">
+                <button class="btn secondary" onclick="showMainMenu()">Back</button>
+            </div>
+            
+            <!-- Manual Join Section -->
+            <div class="manual-join">
+                <h3>Can't find the room? Join manually:</h3>
+                <div class="form-group">
+                    <input type="text" id="manualRoomId" placeholder="Enter Room ID">
+                    <button class="btn primary" onclick="joinManualRoom()">Join</button>
+                </div>
             </div>
         </div>
 
