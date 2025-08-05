@@ -703,22 +703,22 @@ class OSEApp {
         activeRoomsContainer.innerHTML = roomList.map(room => {
             const isRecent = (Date.now() - room.lastActive) < (5 * 60 * 1000); // 5 minutes
             const timeAgo = this.formatTimeAgo(room.lastActive);
-            const displayCode = room.shortCode || room.id.substring(0, 8);
+            const displayCode = room.shortCode || (room.id ? room.id.substring(0, 8) : 'Unknown');
             
             return `
                 <div class="room-card ${isRecent ? 'online' : 'offline'}" onclick="joinRoomFromList('${room.id}')">
                     <div class="room-header">
-                        <h3 class="room-title">${this.escapeHtml(room.title)}</h3>
+                        <h3 class="room-title">${this.escapeHtml(room.title || 'Untitled Room')}</h3>
                         <span class="room-status ${isRecent ? 'online' : 'offline'}">
                             ${isRecent ? 'ONLINE' : 'OFFLINE'}
                         </span>
                     </div>
                     <div class="room-details">
-                        ${this.capitalizeFirst(room.language)} • ${this.capitalizeFirst(room.level)} • Host: ${this.escapeHtml(room.host)}
+                        ${this.capitalizeFirst(room.language || 'Unknown')} • ${this.capitalizeFirst(room.level || 'Unknown')} • Host: ${this.escapeHtml(room.host || 'Unknown')}
                     </div>
                     <div class="room-meta">
                         <span class="room-participants">
-                            ${room.currentParticipants}/${room.maxParticipants} participants
+                            ${room.currentParticipants || 0}/${room.maxParticipants || 4} participants
                         </span>
                         <span class="room-code">Code: ${displayCode}</span>
                         <span class="room-time">Last active: ${timeAgo}</span>
