@@ -280,7 +280,7 @@ class OSEApp {
                 });
                 
                 // Save room to localStorage for room list
-                this.saveRoomToStorage();
+                await this.saveRoomToStorage();
                 
                 this.setupRoomUI();
                 this.showChatRoom();
@@ -329,28 +329,41 @@ class OSEApp {
     async joinRoom() {
         const guestName = document.getElementById('guestName').value.trim();
         const roomId = document.getElementById('roomId').value.trim();
+        const fromList = document.getElementById('roomId').getAttribute('data-from-list') === 'true';
 
         if (!guestName || !roomId) {
             alert('Please fill in all fields');
             return;
         }
 
-        // Show loading screen while checking room
-        this.showLoadingScreen('Joining room...', 'Checking if room is available...');
+        // Clear the flag
+        document.getElementById('roomId').removeAttribute('data-from-list');
+
+        // Show loading screen
+        this.showLoadingScreen('Joining room...', 'Preparing to connect...');
         
-        // First check if the room exists
-        console.log('Checking if room exists:', roomId);
-        const roomExists = await this.checkRoomExists(roomId);
+        let actualRoomId = roomId;
         
-        if (!roomExists) {
-            alert('Room not found or is no longer active. Please check the room ID or try a different room.');
-            this.showJoinRoom();
-            return;
+        // Only check room existence if NOT coming from room list
+        if (!fromList) {
+            this.updateLoadingStep('Checking if room is available...');
+            console.log('Checking if room exists:', roomId);
+            const roomCheck = await this.checkRoomExists(roomId);
+            
+            if (!roomCheck.exists) {
+                alert('Room not found or is no longer active. Please check the room ID or try a different room.');
+                this.showJoinRoom();
+                return;
+            }
+            
+            actualRoomId = roomCheck.roomId;
+            console.log('Room exists, connecting to:', actualRoomId);
+        } else {
+            console.log('Joining from room list, skipping existence check');
         }
         
-        this.updateLoadingStep('Room found! Establishing connection...');
-        console.log('Room exists, connecting...');
-        await this.connectToRoom(roomId, guestName);
+        this.updateLoadingStep('Establishing connection...');
+        await this.connectToRoom(actualRoomId, guestName);
     }
 
     handleNewConnection(conn) {
@@ -760,57 +773,88 @@ class OSEApp {
     }
 
     async joinRoomFromList(roomId) {
+        // For rooms from the list, we skip the existence check since they're already verified
         // Show join room screen with pre-filled room ID
         document.getElementById('roomId').value = roomId;
+        
+        // Add a flag to indicate this came from room list
+        document.getElementById('roomId').setAttribute('data-from-list', 'true');
         this.showJoinRoom();
     }
 
     // Check if a room is actually active before trying to connect
     async checkRoomExists(roomId) {
         try {
+            // First check if this is a shortCode, if so, convert to full room ID
+            const rooms = this.getRoomsFromStorage();
+            const firebaseRooms = await this.firebaseDB.getRooms();
+            const allRooms = { ...rooms };
+            
+            // Merge Firebase rooms
+            if (firebaseRooms && typeof firebaseRooms === 'object') {
+                Object.keys(firebaseRooms).forEach(id => {
+                    const firebaseRoom = { ...firebaseRooms[id], id };
+                    allRooms[id] = firebaseRoom;
+                });
+            }
+            
+            // Look for room by ID or shortCode
+            let actualRoomId = roomId;
+            const roomEntry = Object.values(allRooms).find(room => 
+                room.id === roomId || room.shortCode === roomId
+            );
+            
+            if (roomEntry) {
+                actualRoomId = roomEntry.id;
+                console.log(`Found room: ${roomId} -> ${actualRoomId}`);
+            } else {
+                console.log(`Room not found in storage: ${roomId}`);
+                return { exists: false, roomId: null };
+            }
+            
             // Create a temporary peer to test connection
             const testPeer = new Peer();
             
             return new Promise((resolve) => {
                 const timeout = setTimeout(() => {
                     testPeer.destroy();
-                    resolve(false);
-                }, 3000);
+                    resolve({ exists: false, roomId: actualRoomId });
+                }, 4000); // Increased timeout for room creation
 
                 testPeer.on('open', () => {
-                    const testConn = testPeer.connect(roomId);
+                    const testConn = testPeer.connect(actualRoomId);
                     
                     const connTimeout = setTimeout(() => {
                         testConn.close();
                         testPeer.destroy();
                         clearTimeout(timeout);
-                        resolve(false);
-                    }, 2000);
+                        resolve({ exists: false, roomId: actualRoomId });
+                    }, 3000); // Increased timeout
 
                     testConn.on('open', () => {
                         clearTimeout(connTimeout);
                         clearTimeout(timeout);
                         testConn.close();
                         testPeer.destroy();
-                        resolve(true);
+                        resolve({ exists: true, roomId: actualRoomId });
                     });
 
                     testConn.on('error', () => {
                         clearTimeout(connTimeout);
                         clearTimeout(timeout);
                         testPeer.destroy();
-                        resolve(false);
+                        resolve({ exists: false, roomId: actualRoomId });
                     });
                 });
 
                 testPeer.on('error', () => {
                     clearTimeout(timeout);
-                    resolve(false);
+                    resolve({ exists: false, roomId: actualRoomId });
                 });
             });
         } catch (error) {
             console.error('Error checking room existence:', error);
-            return false;
+            return { exists: false, roomId };
         }
     }
 
