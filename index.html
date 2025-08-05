@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSE - Only Speak English</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>OSE</h1>
+            <p>Only Speak English - Language Exchange Platform</p>
+        </header>
+
+        <!-- Main Menu -->
+        <div id="mainMenu" class="screen">
+            <div class="menu-buttons">
+                <button class="btn primary" onclick="showCreateRoom()">Create Room</button>
+                <button class="btn secondary" onclick="showJoinRoom()">Join Room</button>
+            </div>
+        </div>
+
+        <!-- Create Room -->
+        <div id="createRoom" class="screen hidden">
+            <h2>Create a New Room</h2>
+            <form id="createRoomForm">
+                <div class="form-group">
+                    <label>Your Name:</label>
+                    <input type="text" id="hostName" placeholder="Enter your name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Room Title:</label>
+                    <input type="text" id="roomTitle" placeholder="e.g., English Practice for Beginners" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Language:</label>
+                    <select id="roomLanguage" required>
+                        <option value="">Select Language</option>
+                        <option value="english">English</option>
+                        <option value="korean">Korean</option>
+                        <option value="japanese">Japanese</option>
+                        <option value="mixed">Mixed Languages</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Level:</label>
+                    <select id="roomLevel" required>
+                        <option value="">Select Level</option>
+                        <option value="beginner">Beginner</option>
+                        <option value="intermediate">Intermediate</option>
+                        <option value="advanced">Advanced</option>
+                        <option value="mixed">Mixed Levels</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Max Participants:</label>
+                    <select id="maxParticipants">
+                        <option value="2">2 people</option>
+                        <option value="4" selected>4 people</option>
+                        <option value="6">6 people</option>
+                        <option value="8">8 people</option>
+                    </select>
+                </div>
+                
+                <div class="button-group">
+                    <button type="button" class="btn secondary" onclick="showMainMenu()">Back</button>
+                    <button type="submit" class="btn primary">Create Room</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Join Room -->
+        <div id="joinRoom" class="screen hidden">
+            <h2>Join a Room</h2>
+            <form id="joinRoomForm">
+                <div class="form-group">
+                    <label>Your Name:</label>
+                    <input type="text" id="guestName" placeholder="Enter your name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Room ID:</label>
+                    <input type="text" id="roomId" placeholder="Enter room ID" required>
+                </div>
+                
+                <div class="button-group">
+                    <button type="button" class="btn secondary" onclick="showMainMenu()">Back</button>
+                    <button type="submit" class="btn primary">Join Room</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Chat Room -->
+        <div id="chatRoom" class="screen hidden">
+            <div class="chat-header">
+                <div class="room-info">
+                    <h3 id="currentRoomTitle">Room Name</h3>
+                    <span id="currentRoomDetails">English • Intermediate • Room ID: <span id="displayRoomId"></span></span>
+                </div>
+                <button class="btn danger" onclick="leaveRoom()">Leave Room</button>
+            </div>
+            
+            <div class="participants">
+                <h4>Participants (<span id="participantCount">0</span>)</h4>
+                <div id="participantList"></div>
+            </div>
+            
+            <div class="chat-container">
+                <div id="chatMessages" class="chat-messages"></div>
+                
+                <div class="chat-input">
+                    <div class="voice-controls">
+                        <button id="micBtn" class="btn voice-btn" onclick="toggleMic()">
+                            <span id="micIcon">🎤</span>
+                        </button>
+                        <button id="speakerBtn" class="btn voice-btn" onclick="toggleSpeaker()">
+                            <span id="speakerIcon">🔊</span>
+                        </button>
+                    </div>
+                    
+                    <div class="text-input">
+                        <input type="text" id="messageInput" placeholder="Type your message..." onkeypress="handleKeyPress(event)">
+                        <button class="btn primary" onclick="sendMessage()">Send</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Screen -->
+        <div id="loadingScreen" class="screen hidden">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Connecting to room...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
