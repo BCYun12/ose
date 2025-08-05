@@ -90,16 +90,23 @@ class OSEApp {
 
         this.showLoadingScreen();
         
+        // Set connection timeout
+        const connectionTimeout = setTimeout(() => {
+            if (this.peer && !this.currentRoom) {
+                this.peer.destroy();
+                alert('Connection timeout. Please check your internet connection and try again.');
+                this.showMainMenu();
+            }
+        }, 15000); // 15 second timeout
+        
         try {
-            // Initialize PeerJS
+            // Initialize PeerJS with default cloud server
             this.peer = new Peer({
-                host: 'peerjs-server.herokuapp.com',
-                port: 443,
-                path: '/',
-                secure: true
+                debug: 2
             });
 
             this.peer.on('open', (id) => {
+                clearTimeout(connectionTimeout); // Clear timeout on successful connection
                 this.currentRoom = id;
                 this.roomData.participants.set(id, {
                     name: hostName,
@@ -125,7 +132,19 @@ class OSEApp {
 
             this.peer.on('error', (err) => {
                 console.error('Peer error:', err);
-                alert('Failed to create room. Please try again.');
+                let errorMessage = 'Failed to create room. ';
+                
+                if (err.type === 'network') {
+                    errorMessage += 'Network connection failed. Please check your internet connection.';
+                } else if (err.type === 'peer-unavailable') {
+                    errorMessage += 'Peer connection unavailable.';
+                } else if (err.type === 'browser-incompatible') {
+                    errorMessage += 'Your browser does not support WebRTC.';
+                } else {
+                    errorMessage += 'Please try again or use a different browser.';
+                }
+                
+                alert(errorMessage);
                 this.showMainMenu();
             });
 
@@ -152,12 +171,9 @@ class OSEApp {
         this.showLoadingScreen();
 
         try {
-            // Initialize PeerJS
+            // Initialize PeerJS with default cloud server
             this.peer = new Peer({
-                host: 'peerjs-server.herokuapp.com',
-                port: 443,
-                path: '/',
-                secure: true
+                debug: 2
             });
 
             this.peer.on('open', (id) => {
@@ -548,12 +564,9 @@ class OSEApp {
         this.showLoadingScreen();
         
         try {
-            // Initialize PeerJS
+            // Initialize PeerJS with default cloud server
             this.peer = new Peer({
-                host: 'peerjs-server.herokuapp.com',
-                port: 443,
-                path: '/',
-                secure: true
+                debug: 2
             });
 
             this.peer.on('open', (id) => {
