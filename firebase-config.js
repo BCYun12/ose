@@ -1,18 +1,18 @@
 // Firebase Configuration
 const firebaseConfig = {
-    apiKey: "AIzaSyDummy-Key-For-Demo-Replace-With-Real",
-    authDomain: "ose-demo.firebaseapp.com", 
-    databaseURL: "https://ose-demo-default-rtdb.firebaseio.com",
-    projectId: "ose-demo",
-    storageBucket: "ose-demo.appspot.com",
-    messagingSenderId: "123456789",
-    appId: "1:123456789:web:abcdef123456"
+    apiKey: "AIzaSyDvwZ-NjJOOlEQcuQovNJkOL5JOTccxo9k",
+    authDomain: "ose-language-exchange.firebaseapp.com",
+    databaseURL: "https://ose-language-exchange-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "ose-language-exchange",
+    storageBucket: "ose-language-exchange.firebasestorage.app",
+    messagingSenderId: "514447343512",
+    appId: "1:514447343512:web:e6a08c68604df904adf5ed"
 };
 
 // Simple Firebase Database API wrapper (no SDK needed)
 class FirebaseDB {
     constructor() {
-        this.baseUrl = 'https://ose-realtime-default-rtdb.firebaseio.com';
+        this.baseUrl = 'https://ose-language-exchange-default-rtdb.asia-southeast1.firebasedatabase.app';
     }
 
     async saveRoom(roomId, roomData) {
