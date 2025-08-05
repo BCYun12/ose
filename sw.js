@@ -4,6 +4,7 @@ const urlsToCache = [
   './index.html',
   './style.css',
   './app.js',
+  './firebase-config.js',
   './manifest.json',
   './icons/icon-192x192.png',
   './icons/icon-512x512.png',

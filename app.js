@@ -7,6 +7,7 @@ class OSEApp {
         this.userName = '';
         this.isHost = false;
         this.roomData = {};
+        this.firebaseDB = new FirebaseDB();
         
         this.init();
     }
@@ -600,7 +601,7 @@ class OSEApp {
         return Math.floor(1000 + Math.random() * 9000).toString();
     }
 
-    saveRoomToStorage() {
+    async saveRoomToStorage() {
         const rooms = this.getRoomsFromStorage();
         const shortCode = this.generateShortCode();
         
@@ -617,8 +618,12 @@ class OSEApp {
             lastActive: Date.now()
         };
         
+        // Save locally
         rooms[this.currentRoom] = roomInfo;
         localStorage.setItem('ose_rooms', JSON.stringify(rooms));
+        
+        // Save to Firebase for cross-device sharing
+        await this.firebaseDB.saveRoom(this.currentRoom, roomInfo);
         
         this.roomData.shortCode = shortCode;
         return shortCode;
@@ -633,32 +638,50 @@ class OSEApp {
         }
     }
 
-    updateRoomActivity() {
+    async updateRoomActivity() {
         if (this.currentRoom && this.isHost) {
             const rooms = this.getRoomsFromStorage();
             if (rooms[this.currentRoom]) {
                 rooms[this.currentRoom].lastActive = Date.now();
                 rooms[this.currentRoom].currentParticipants = this.roomData.participants.size;
                 localStorage.setItem('ose_rooms', JSON.stringify(rooms));
+                
+                // Also update Firebase for cross-device sync
+                await this.firebaseDB.updateRoomActivity(this.currentRoom, this.roomData.participants.size);
             }
         }
     }
 
-    loadRoomList() {
-        const rooms = this.getRoomsFromStorage();
+    async loadRoomList() {
+        const localRooms = this.getRoomsFromStorage();
+        const firebaseRooms = await this.firebaseDB.getRooms();
+        
+        // Merge local and Firebase rooms
+        const allRooms = { ...localRooms };
+        Object.keys(firebaseRooms).forEach(roomId => {
+            // Use Firebase data if it's newer or doesn't exist locally
+            if (!allRooms[roomId] || firebaseRooms[roomId].lastActive > allRooms[roomId].lastActive) {
+                allRooms[roomId] = firebaseRooms[roomId];
+            }
+        });
+        
         const activeRoomsContainer = document.getElementById('activeRooms');
         const roomCountElement = document.getElementById('roomCount');
         
         // Clean up old rooms (older than 1 hour)
         const oneHourAgo = Date.now() - (60 * 60 * 1000);
-        Object.keys(rooms).forEach(roomId => {
-            if (rooms[roomId].lastActive < oneHourAgo) {
-                delete rooms[roomId];
+        Object.keys(allRooms).forEach(roomId => {
+            if (allRooms[roomId].lastActive < oneHourAgo) {
+                delete allRooms[roomId];
+                // Also delete from Firebase
+                this.firebaseDB.deleteRoom(roomId);
             }
         });
-        localStorage.setItem('ose_rooms', JSON.stringify(rooms));
         
-        const roomList = Object.values(rooms);
+        // Update localStorage with merged data
+        localStorage.setItem('ose_rooms', JSON.stringify(allRooms));
+        
+        const roomList = Object.values(allRooms);
         roomCountElement.textContent = `${roomList.length} active rooms`;
         
         if (roomList.length === 0) {
@@ -822,11 +845,14 @@ class OSEApp {
             audio.remove();
         });
 
-        // Remove from localStorage if host
+        // Remove from localStorage and Firebase if host
         if (this.isHost && this.currentRoom) {
             const rooms = this.getRoomsFromStorage();
             delete rooms[this.currentRoom];
             localStorage.setItem('ose_rooms', JSON.stringify(rooms));
+            
+            // Also remove from Firebase
+            this.firebaseDB.deleteRoom(this.currentRoom);
         }
 
         // Reset state
