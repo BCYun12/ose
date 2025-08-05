@@ -659,9 +659,12 @@ class OSEApp {
         // Merge local and Firebase rooms
         const allRooms = { ...localRooms };
         Object.keys(firebaseRooms).forEach(roomId => {
+            // Ensure Firebase room has id field
+            const firebaseRoom = { ...firebaseRooms[roomId], id: roomId };
+            
             // Use Firebase data if it's newer or doesn't exist locally
-            if (!allRooms[roomId] || firebaseRooms[roomId].lastActive > allRooms[roomId].lastActive) {
-                allRooms[roomId] = firebaseRooms[roomId];
+            if (!allRooms[roomId] || firebaseRoom.lastActive > allRooms[roomId].lastActive) {
+                allRooms[roomId] = firebaseRoom;
             }
         });
         
