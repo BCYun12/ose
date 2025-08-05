@@ -505,6 +505,42 @@ header p {
     margin-bottom: 0;
 }
 
+/* PWA Styles */
+.install-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    font-size: 14px;
+    padding: 8px 16px;
+    z-index: 1000;
+}
+
+#shareBtn {
+    margin-left: 10px;
+    font-size: 14px;
+    padding: 8px 16px;
+}
+
+/* App-like full screen on mobile */
+@media (display-mode: standalone) {
+    body {
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+    
+    header {
+        padding-top: 20px;
+    }
+}
+
+/* iOS Safari PWA adjustments */
+@supports (-webkit-touch-callout: none) {
+    .container {
+        padding-top: max(20px, env(safe-area-inset-top));
+        padding-bottom: max(20px, env(safe-area-inset-bottom));
+    }
+}
+
 /* Responsive adjustments for room list */
 @media (max-width: 768px) {
     .room-refresh {
@@ -526,5 +562,23 @@ header p {
     
     .manual-join .form-group {
         flex-direction: column;
+    }
+    
+    .install-btn {
+        position: static;
+        margin: 10px auto;
+        display: block;
+        width: fit-content;
+    }
+    
+    .chat-header {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    
+    #shareBtn {
+        margin-left: 0;
+        flex: 1;
+        min-width: 120px;
     }
 }

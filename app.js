@@ -13,7 +13,125 @@ class OSEApp {
 
     init() {
         this.setupEventListeners();
-        this.showMainMenu();
+        this.registerServiceWorker();
+        this.handleUrlParams();
+        this.setupPWAInstall();
+    }
+
+    // PWA Functions
+    registerServiceWorker() {
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then((registration) => {
+                        console.log('SW registered: ', registration);
+                    })
+                    .catch((registrationError) => {
+                        console.log('SW registration failed: ', registrationError);
+                    });
+            });
+        }
+    }
+
+    handleUrlParams() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const joinCode = urlParams.get('join');
+        const action = urlParams.get('action');
+        
+        if (joinCode) {
+            // Auto-fill join form and show join screen
+            setTimeout(() => {
+                document.getElementById('roomId').value = joinCode;
+                this.showJoinRoom();
+            }, 100);
+        } else if (action === 'create') {
+            this.showCreateRoom();
+        } else if (action === 'join') {
+            this.showJoinRoom();
+        } else {
+            this.showMainMenu();
+        }
+    }
+
+    setupPWAInstall() {
+        let deferredPrompt;
+        
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            this.showInstallButton();
+        });
+
+        window.addEventListener('appinstalled', () => {
+            console.log('PWA was installed');
+            this.hideInstallButton();
+        });
+    }
+
+    showInstallButton() {
+        const installBtn = document.createElement('button');
+        installBtn.id = 'installBtn';
+        installBtn.className = 'btn secondary install-btn';
+        installBtn.innerHTML = '📱 Install App';
+        installBtn.onclick = () => this.installPWA();
+        
+        document.querySelector('header').appendChild(installBtn);
+    }
+
+    hideInstallButton() {
+        const installBtn = document.getElementById('installBtn');
+        if (installBtn) {
+            installBtn.remove();
+        }
+    }
+
+    async installPWA() {
+        const installBtn = document.getElementById('installBtn');
+        if (window.deferredPrompt) {
+            window.deferredPrompt.prompt();
+            const { outcome } = await window.deferredPrompt.userChoice;
+            console.log(`User response to the install prompt: ${outcome}`);
+            window.deferredPrompt = null;
+            this.hideInstallButton();
+        }
+    }
+
+    addShareButton(shareUrl) {
+        const chatHeader = document.querySelector('.chat-header');
+        let shareBtn = document.getElementById('shareBtn');
+        
+        if (!shareBtn) {
+            shareBtn = document.createElement('button');
+            shareBtn.id = 'shareBtn';
+            shareBtn.className = 'btn secondary';
+            shareBtn.innerHTML = '🔗 Share Room';
+            shareBtn.onclick = () => this.shareRoom(shareUrl);
+            chatHeader.appendChild(shareBtn);
+        }
+    }
+
+    async shareRoom(shareUrl) {
+        try {
+            if (navigator.share) {
+                // Use native share API
+                await navigator.share({
+                    title: 'Join my English practice room!',
+                    text: 'Come practice English with me on OSE',
+                    url: shareUrl
+                });
+            } else if (navigator.clipboard) {
+                // Copy to clipboard
+                await navigator.clipboard.writeText(shareUrl);
+                alert('Room link copied to clipboard!');
+            } else {
+                // Fallback - show link for manual copy
+                prompt('Copy this link to share:', shareUrl);
+            }
+        } catch (error) {
+            console.log('Error sharing:', error);
+            // Fallback
+            prompt('Copy this link to share:', shareUrl);
+        }
     }
 
     setupEventListeners() {
@@ -120,7 +238,11 @@ class OSEApp {
                 this.showChatRoom();
                 this.startActivityUpdater();
                 const shortCode = this.roomData.shortCode || id.substring(0, 8);
+                const shareUrl = `${window.location.origin}${window.location.pathname}?join=${shortCode}`;
+                
                 this.addSystemMessage(`Room created! Room Code: ${shortCode}`);
+                this.addSystemMessage(`Share: ${shareUrl}`);
+                this.addShareButton(shareUrl);
             });
 
             this.peer.on('connection', (conn) => {
