@@ -23,12 +23,20 @@ class OSEApp {
     registerServiceWorker() {
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
+                navigator.serviceWorker.register('/ose/sw.js')
                     .then((registration) => {
                         console.log('SW registered: ', registration);
                     })
                     .catch((registrationError) => {
                         console.log('SW registration failed: ', registrationError);
+                        // Try alternative path for GitHub Pages
+                        navigator.serviceWorker.register('./sw.js')
+                            .then((registration) => {
+                                console.log('SW registered with alternative path: ', registration);
+                            })
+                            .catch((error) => {
+                                console.log('Both SW registration attempts failed: ', error);
+                            });
                     });
             });
         }
@@ -195,11 +203,6 @@ class OSEApp {
 
     async showRoomList() {
         this.showScreen('roomList');
-        
-        // 디버깅을 위한 즉시 테스트 데이터 표시
-        const activeRoomsContainer = document.getElementById('activeRooms');
-        activeRoomsContainer.innerHTML = '<div class="empty-rooms"><p>로딩 중... 디버깅 정보는 콘솔을 확인하세요.</p></div>';
-        
         await this.loadRoomList();
     }
 
@@ -610,29 +613,39 @@ class OSEApp {
     }
 
     async loadRoomList() {
-        console.log('=== loadRoomList 시작 ===');
-        
         const localRooms = this.getRoomsFromStorage();
-        console.log('Local rooms:', localRooms);
-        
         const firebaseRooms = await this.firebaseDB.getRooms();
-        console.log('Firebase rooms:', firebaseRooms);
         
         // Merge local and Firebase rooms
         const allRooms = { ...localRooms };
-        Object.keys(firebaseRooms).forEach(roomId => {
-            // Ensure Firebase room has id field
-            const firebaseRoom = { ...firebaseRooms[roomId], id: roomId };
-            console.log(`Processing Firebase room ${roomId}:`, firebaseRoom);
-            
-            // Use Firebase data if it's newer or doesn't exist locally
-            if (!allRooms[roomId] || firebaseRoom.lastActive > allRooms[roomId].lastActive) {
-                allRooms[roomId] = firebaseRoom;
-                console.log(`Added/Updated room ${roomId} from Firebase`);
-            }
-        });
         
-        console.log('All merged rooms:', allRooms);
+        // Safely process Firebase rooms
+        if (firebaseRooms && typeof firebaseRooms === 'object') {
+            Object.keys(firebaseRooms).forEach(roomId => {
+                try {
+                    // Ensure Firebase room has proper structure
+                    const firebaseRoom = { 
+                        ...firebaseRooms[roomId], 
+                        id: roomId,
+                        // Ensure all required fields exist with safe defaults
+                        title: firebaseRooms[roomId].title || 'Untitled Room',
+                        host: firebaseRooms[roomId].host || 'Unknown Host',
+                        language: firebaseRooms[roomId].language || 'english',
+                        level: firebaseRooms[roomId].level || 'intermediate',
+                        lastActive: firebaseRooms[roomId].lastActive || Date.now(),
+                        currentParticipants: firebaseRooms[roomId].currentParticipants || 0,
+                        maxParticipants: firebaseRooms[roomId].maxParticipants || 4
+                    };
+                    
+                    // Use Firebase data if it's newer or doesn't exist locally
+                    if (!allRooms[roomId] || firebaseRoom.lastActive > (allRooms[roomId].lastActive || 0)) {
+                        allRooms[roomId] = firebaseRoom;
+                    }
+                } catch (error) {
+                    console.error(`Error processing Firebase room ${roomId}:`, error);
+                }
+            });
+        }
         
         const activeRoomsContainer = document.getElementById('activeRooms');
         const roomCountElement = document.getElementById('roomCount');
@@ -669,10 +682,22 @@ class OSEApp {
         activeRoomsContainer.innerHTML = roomList.map(room => {
             const isRecent = (Date.now() - room.lastActive) < (5 * 60 * 1000); // 5 minutes
             const timeAgo = this.formatTimeAgo(room.lastActive);
-            const displayCode = room.shortCode || (room.id ? room.id.substring(0, 8) : 'Unknown');
+            
+            // Safe code display - ensure we have valid strings for substring
+            let displayCode = 'Unknown';
+            if (room.shortCode && typeof room.shortCode === 'string') {
+                displayCode = room.shortCode;
+            } else if (room.id && typeof room.id === 'string' && room.id.length >= 8) {
+                displayCode = room.id.substring(0, 8);
+            } else if (room.id && typeof room.id === 'string') {
+                displayCode = room.id;
+            }
+            
+            // Safe room ID for onclick - ensure we have a valid ID
+            const roomId = room.id || Object.keys(allRooms).find(key => allRooms[key] === room) || 'unknown';
             
             return `
-                <div class="room-card ${isRecent ? 'online' : 'offline'}" onclick="joinRoomFromList('${room.id}')">
+                <div class="room-card ${isRecent ? 'online' : 'offline'}" onclick="joinRoomFromList('${roomId}')">
                     <div class="room-header">
                         <h3 class="room-title">${this.escapeHtml(room.title || 'Untitled Room')}</h3>
                         <span class="room-status ${isRecent ? 'online' : 'offline'}">
