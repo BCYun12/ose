@@ -193,9 +193,9 @@ class OSEApp {
         this.showScreen('joinRoom');
     }
 
-    showRoomList() {
+    async showRoomList() {
         this.showScreen('roomList');
-        this.loadRoomList();
+        await this.loadRoomList();
     }
 
     showLoadingScreen() {
@@ -895,12 +895,12 @@ function showJoinRoom() {
     app.showJoinRoom();
 }
 
-function showRoomList() {
-    app.showRoomList();
+async function showRoomList() {
+    await app.showRoomList();
 }
 
-function refreshRoomList() {
-    app.loadRoomList();
+async function refreshRoomList() {
+    await app.loadRoomList();
 }
 
 function joinRoomFromList(roomId) {
