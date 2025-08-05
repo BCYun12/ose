@@ -875,6 +875,20 @@ async function refreshRoomList() {
     await app.loadRoomList();
 }
 
+async function testFirebase() {
+    console.log('=== Firebase 테스트 시작 ===');
+    const firebaseDB = new FirebaseDB();
+    
+    try {
+        const rooms = await firebaseDB.getRooms();
+        alert('Firebase 테스트 결과: ' + JSON.stringify(rooms, null, 2));
+        console.log('Firebase 테스트 성공:', rooms);
+    } catch (error) {
+        alert('Firebase 테스트 실패: ' + error.message);
+        console.error('Firebase 테스트 실패:', error);
+    }
+}
+
 function joinRoomFromList(roomId) {
     app.joinRoomFromList(roomId);
 }
