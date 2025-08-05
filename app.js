@@ -206,8 +206,17 @@ class OSEApp {
         await this.loadRoomList();
     }
 
-    showLoadingScreen() {
+    showLoadingScreen(message = 'Connecting to room...', step = 'Initializing connection...') {
         this.showScreen('loadingScreen');
+        document.getElementById('loadingMessage').textContent = message;
+        document.getElementById('loadingStep').textContent = step;
+    }
+
+    updateLoadingStep(step) {
+        const stepElement = document.getElementById('loadingStep');
+        if (stepElement) {
+            stepElement.textContent = step;
+        }
     }
 
     showChatRoom() {
@@ -239,21 +248,27 @@ class OSEApp {
             participants: new Map()
         };
 
-        this.showLoadingScreen();
+        this.showLoadingScreen('Creating room...', 'Setting up peer connection...');
         
-        // Set connection timeout
+        // Set connection timeout (10 seconds)
         const connectionTimeout = setTimeout(() => {
             if (this.peer && !this.currentRoom) {
                 this.peer.destroy();
                 alert('Connection timeout. Please check your internet connection and try again.');
                 this.showMainMenu();
             }
-        }, 15000); // 15 second timeout
+        }, 10000);
         
         try {
-            // Initialize PeerJS with default cloud server
+            // Initialize PeerJS with mobile-friendly configuration
             this.peer = new Peer({
-                debug: 2
+                debug: 1, // Reduce debug level for mobile
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:global.stun.twilio.com:3478' }
+                    ]
+                }
             });
 
             this.peer.on('open', (id) => {
@@ -320,6 +335,21 @@ class OSEApp {
             return;
         }
 
+        // Show loading screen while checking room
+        this.showLoadingScreen('Joining room...', 'Checking if room is available...');
+        
+        // First check if the room exists
+        console.log('Checking if room exists:', roomId);
+        const roomExists = await this.checkRoomExists(roomId);
+        
+        if (!roomExists) {
+            alert('Room not found or is no longer active. Please check the room ID or try a different room.');
+            this.showJoinRoom();
+            return;
+        }
+        
+        this.updateLoadingStep('Room found! Establishing connection...');
+        console.log('Room exists, connecting...');
         await this.connectToRoom(roomId, guestName);
     }
 
@@ -735,24 +765,117 @@ class OSEApp {
         this.showJoinRoom();
     }
 
+    // Check if a room is actually active before trying to connect
+    async checkRoomExists(roomId) {
+        try {
+            // Create a temporary peer to test connection
+            const testPeer = new Peer();
+            
+            return new Promise((resolve) => {
+                const timeout = setTimeout(() => {
+                    testPeer.destroy();
+                    resolve(false);
+                }, 3000);
+
+                testPeer.on('open', () => {
+                    const testConn = testPeer.connect(roomId);
+                    
+                    const connTimeout = setTimeout(() => {
+                        testConn.close();
+                        testPeer.destroy();
+                        clearTimeout(timeout);
+                        resolve(false);
+                    }, 2000);
+
+                    testConn.on('open', () => {
+                        clearTimeout(connTimeout);
+                        clearTimeout(timeout);
+                        testConn.close();
+                        testPeer.destroy();
+                        resolve(true);
+                    });
+
+                    testConn.on('error', () => {
+                        clearTimeout(connTimeout);
+                        clearTimeout(timeout);
+                        testPeer.destroy();
+                        resolve(false);
+                    });
+                });
+
+                testPeer.on('error', () => {
+                    clearTimeout(timeout);
+                    resolve(false);
+                });
+            });
+        } catch (error) {
+            console.error('Error checking room existence:', error);
+            return false;
+        }
+    }
+
     async connectToRoom(roomId, guestName) {
         this.userName = guestName.trim();
         this.isHost = false;
         this.currentRoom = roomId;
         
-        this.showLoadingScreen();
+        this.updateLoadingStep('Initializing peer connection...');
+        
+        // Set overall connection timeout (10 seconds)
+        const overallTimeout = setTimeout(() => {
+            if (this.peer) {
+                this.peer.destroy();
+            }
+            alert('Connection timeout. Please check your internet connection and try again.');
+            this.showRoomList();
+        }, 10000);
         
         try {
-            // Initialize PeerJS with default cloud server
+            // Initialize PeerJS with mobile-friendly configuration
             this.peer = new Peer({
-                debug: 2
+                debug: 1, // Reduce debug level for mobile
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:global.stun.twilio.com:3478' }
+                    ]
+                }
             });
 
+            // Peer open timeout (5 seconds)
+            const peerOpenTimeout = setTimeout(() => {
+                console.error('Peer failed to open within 5 seconds');
+                if (this.peer) {
+                    this.peer.destroy();
+                }
+                clearTimeout(overallTimeout);
+                alert('Failed to initialize connection. Please try again.');
+                this.showRoomList();
+            }, 5000);
+
             this.peer.on('open', (id) => {
-                // Connect to the host
+                clearTimeout(peerOpenTimeout);
+                console.log('Peer opened with ID:', id);
+                this.updateLoadingStep('Connecting to room...');
+                
+                // Connect to the host with timeout
                 const conn = this.peer.connect(roomId);
                 
+                // Connection timeout (3 seconds)
+                const connTimeout = setTimeout(() => {
+                    console.error('Connection to room failed within 3 seconds');
+                    conn.close();
+                    clearTimeout(overallTimeout);
+                    alert('Failed to connect to room. The room might be offline or unreachable.');
+                    this.showRoomList();
+                }, 3000);
+                
                 conn.on('open', () => {
+                    clearTimeout(connTimeout);
+                    clearTimeout(overallTimeout);
+                    console.log('Connected to room:', roomId);
+                    this.updateLoadingStep('Joining room...');
+                    
                     this.handleNewConnection(conn);
                     
                     // Send join request
@@ -764,9 +887,19 @@ class OSEApp {
                 });
 
                 conn.on('error', (err) => {
+                    clearTimeout(connTimeout);
+                    clearTimeout(overallTimeout);
                     console.error('Connection error:', err);
-                    alert('Failed to join room. The room might be offline.');
+                    alert('Failed to join room. The room might be offline or unreachable.');
                     this.showRoomList();
+                });
+
+                conn.on('close', () => {
+                    console.log('Connection closed unexpectedly');
+                    if (this.currentRoom) {
+                        alert('Connection to room was lost.');
+                        this.showRoomList();
+                    }
                 });
             });
 
@@ -775,14 +908,36 @@ class OSEApp {
             });
 
             this.peer.on('error', (err) => {
+                clearTimeout(overallTimeout);
                 console.error('Peer error:', err);
-                alert('Failed to join room. Please try again.');
+                
+                let errorMessage = 'Failed to join room. ';
+                if (err.type === 'network') {
+                    errorMessage += 'Network connection failed. Please check your internet connection.';
+                } else if (err.type === 'peer-unavailable') {
+                    errorMessage += 'The room is not available or has ended.';
+                } else if (err.type === 'browser-incompatible') {
+                    errorMessage += 'Your browser does not support WebRTC. Please try a different browser.';
+                } else {
+                    errorMessage += 'Please try again or use a different network.';
+                }
+                
+                alert(errorMessage);
                 this.showRoomList();
             });
 
+            this.peer.on('disconnected', () => {
+                console.log('Peer disconnected');
+                if (this.currentRoom) {
+                    alert('Lost connection to the room.');
+                    this.showRoomList();
+                }
+            });
+
         } catch (error) {
+            clearTimeout(overallTimeout);
             console.error('Error joining room:', error);
-            alert('Failed to join room. Please try again.');
+            alert('Failed to join room. Please check your internet connection and try again.');
             this.showRoomList();
         }
     }
