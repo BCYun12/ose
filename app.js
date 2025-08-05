@@ -312,55 +312,7 @@ class OSEApp {
             return;
         }
 
-        this.userName = guestName;
-        this.isHost = false;
-        this.currentRoom = roomId;
-
-        this.showLoadingScreen();
-
-        try {
-            // Initialize PeerJS with default cloud server
-            this.peer = new Peer({
-                debug: 2
-            });
-
-            this.peer.on('open', (id) => {
-                // Connect to the host
-                const conn = this.peer.connect(roomId);
-                
-                conn.on('open', () => {
-                    this.handleNewConnection(conn);
-                    
-                    // Send join request
-                    conn.send({
-                        type: 'join_request',
-                        name: guestName,
-                        peerId: id
-                    });
-                });
-
-                conn.on('error', (err) => {
-                    console.error('Connection error:', err);
-                    alert('Failed to join room. Please check the Room ID.');
-                    this.showMainMenu();
-                });
-            });
-
-            this.peer.on('call', (call) => {
-                this.handleIncomingCall(call);
-            });
-
-            this.peer.on('error', (err) => {
-                console.error('Peer error:', err);
-                alert('Failed to join room. Please try again.');
-                this.showMainMenu();
-            });
-
-        } catch (error) {
-            console.error('Error joining room:', error);
-            alert('Failed to join room. Please try again.');
-            this.showMainMenu();
-        }
+        await this.connectToRoom(roomId, guestName);
     }
 
     handleNewConnection(conn) {
@@ -739,9 +691,12 @@ class OSEApp {
     }
 
     async joinRoomFromList(roomId) {
-        const guestName = prompt('Enter your name:');
-        if (!guestName || !guestName.trim()) return;
-        
+        // Show join room screen with pre-filled room ID
+        document.getElementById('roomId').value = roomId;
+        this.showJoinRoom();
+    }
+
+    async connectToRoom(roomId, guestName) {
         this.userName = guestName.trim();
         this.isHost = false;
         this.currentRoom = roomId;
