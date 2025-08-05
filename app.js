@@ -119,7 +119,8 @@ class OSEApp {
                 this.setupRoomUI();
                 this.showChatRoom();
                 this.startActivityUpdater();
-                this.addSystemMessage(`Room created! Share this Room ID: ${id}`);
+                const shortCode = this.roomData.shortCode || id.substring(0, 8);
+                this.addSystemMessage(`Room created! Room Code: ${shortCode}`);
             });
 
             this.peer.on('connection', (conn) => {
@@ -449,10 +450,17 @@ class OSEApp {
     }
 
     // Room List Functions
+    generateShortCode() {
+        return Math.floor(1000 + Math.random() * 9000).toString();
+    }
+
     saveRoomToStorage() {
         const rooms = this.getRoomsFromStorage();
+        const shortCode = this.generateShortCode();
+        
         const roomInfo = {
             id: this.currentRoom,
+            shortCode: shortCode,
             title: this.roomData.title,
             language: this.roomData.language,
             level: this.roomData.level,
@@ -465,6 +473,9 @@ class OSEApp {
         
         rooms[this.currentRoom] = roomInfo;
         localStorage.setItem('ose_rooms', JSON.stringify(rooms));
+        
+        this.roomData.shortCode = shortCode;
+        return shortCode;
     }
 
     getRoomsFromStorage() {
@@ -520,6 +531,7 @@ class OSEApp {
         activeRoomsContainer.innerHTML = roomList.map(room => {
             const isRecent = (Date.now() - room.lastActive) < (5 * 60 * 1000); // 5 minutes
             const timeAgo = this.formatTimeAgo(room.lastActive);
+            const displayCode = room.shortCode || room.id.substring(0, 8);
             
             return `
                 <div class="room-card ${isRecent ? 'online' : 'offline'}" onclick="joinRoomFromList('${room.id}')">
@@ -536,6 +548,7 @@ class OSEApp {
                         <span class="room-participants">
                             ${room.currentParticipants}/${room.maxParticipants} participants
                         </span>
+                        <span class="room-code">Code: ${displayCode}</span>
                         <span class="room-time">Last active: ${timeAgo}</span>
                     </div>
                 </div>
