@@ -195,6 +195,11 @@ class OSEApp {
 
     async showRoomList() {
         this.showScreen('roomList');
+        
+        // 디버깅을 위한 즉시 테스트 데이터 표시
+        const activeRoomsContainer = document.getElementById('activeRooms');
+        activeRoomsContainer.innerHTML = '<div class="empty-rooms"><p>로딩 중... 디버깅 정보는 콘솔을 확인하세요.</p></div>';
+        
         await this.loadRoomList();
     }
 
@@ -605,20 +610,29 @@ class OSEApp {
     }
 
     async loadRoomList() {
+        console.log('=== loadRoomList 시작 ===');
+        
         const localRooms = this.getRoomsFromStorage();
+        console.log('Local rooms:', localRooms);
+        
         const firebaseRooms = await this.firebaseDB.getRooms();
+        console.log('Firebase rooms:', firebaseRooms);
         
         // Merge local and Firebase rooms
         const allRooms = { ...localRooms };
         Object.keys(firebaseRooms).forEach(roomId => {
             // Ensure Firebase room has id field
             const firebaseRoom = { ...firebaseRooms[roomId], id: roomId };
+            console.log(`Processing Firebase room ${roomId}:`, firebaseRoom);
             
             // Use Firebase data if it's newer or doesn't exist locally
             if (!allRooms[roomId] || firebaseRoom.lastActive > allRooms[roomId].lastActive) {
                 allRooms[roomId] = firebaseRoom;
+                console.log(`Added/Updated room ${roomId} from Firebase`);
             }
         });
+        
+        console.log('All merged rooms:', allRooms);
         
         const activeRoomsContainer = document.getElementById('activeRooms');
         const roomCountElement = document.getElementById('roomCount');

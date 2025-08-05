@@ -33,14 +33,19 @@ class FirebaseDB {
 
     async getRooms() {
         try {
+            console.log('Firebase getRooms 시작 - URL:', `${this.baseUrl}/rooms.json`);
             const response = await fetch(`${this.baseUrl}/rooms.json`);
+            console.log('Firebase response status:', response.status, response.statusText);
+            
             if (response.ok) {
                 const data = await response.json();
+                console.log('Firebase 데이터 수신:', data);
                 return data || {};
             }
+            console.error('Firebase response not OK:', response.status);
             return {};
         } catch (error) {
-            console.log('Firebase load failed, using local only:', error);
+            console.error('Firebase load failed, using local only:', error);
             return {};
         }
     }
