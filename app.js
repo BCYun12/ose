@@ -22,7 +22,7 @@ class OSEApp {
     registerServiceWorker() {
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
+                navigator.serviceWorker.register('./sw.js')
                     .then((registration) => {
                         console.log('SW registered: ', registration);
                     })
@@ -54,11 +54,11 @@ class OSEApp {
     }
 
     setupPWAInstall() {
-        let deferredPrompt;
+        this.deferredPrompt = null;
         
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
-            deferredPrompt = e;
+            this.deferredPrompt = e;
             this.showInstallButton();
         });
 
@@ -66,6 +66,31 @@ class OSEApp {
             console.log('PWA was installed');
             this.hideInstallButton();
         });
+
+        // Show manual install instructions for iOS Safari
+        if (this.isIOSSafari()) {
+            this.showIOSInstallInstructions();
+        }
+    }
+
+    isIOSSafari() {
+        const ua = window.navigator.userAgent;
+        const iOS = !!ua.match(/iPad|iPhone|iPod/);
+        const webkit = !!ua.match(/WebKit/);
+        const safari = !ua.match(/CriOS|Chrome/);
+        return iOS && webkit && safari;
+    }
+
+    showIOSInstallInstructions() {
+        const iosBtn = document.createElement('button');
+        iosBtn.id = 'iosInstallBtn';
+        iosBtn.className = 'btn secondary install-btn';
+        iosBtn.innerHTML = '📱 Add to Home Screen';
+        iosBtn.onclick = () => {
+            alert('To install:\n1. Tap Share button (⬆️)\n2. Tap "Add to Home Screen"\n3. Tap "Add"');
+        };
+        
+        document.querySelector('header').appendChild(iosBtn);
     }
 
     showInstallButton() {
@@ -86,12 +111,11 @@ class OSEApp {
     }
 
     async installPWA() {
-        const installBtn = document.getElementById('installBtn');
-        if (window.deferredPrompt) {
-            window.deferredPrompt.prompt();
-            const { outcome } = await window.deferredPrompt.userChoice;
+        if (this.deferredPrompt) {
+            this.deferredPrompt.prompt();
+            const { outcome } = await this.deferredPrompt.userChoice;
             console.log(`User response to the install prompt: ${outcome}`);
-            window.deferredPrompt = null;
+            this.deferredPrompt = null;
             this.hideInstallButton();
         }
     }
