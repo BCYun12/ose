@@ -17,6 +17,31 @@ class OSEApp {
         this.registerServiceWorker();
         this.handleUrlParams();
         this.setupPWAInstall();
+        this.checkForUpdates();
+    }
+
+    async checkForUpdates() {
+        try {
+            const response = await fetch('/version.json?t=' + Date.now());
+            const versionInfo = await response.json();
+            const currentVersion = localStorage.getItem('app_version');
+            
+            if (currentVersion && currentVersion !== versionInfo.version) {
+                console.log(`🔄 New version available: ${versionInfo.version} (current: ${currentVersion})`);
+                
+                // Show update notification (optional)
+                if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                    const updateAvailable = confirm('New version available! Refresh to get the latest features?');
+                    if (updateAvailable) {
+                        window.location.reload(true);
+                    }
+                }
+            }
+            
+            localStorage.setItem('app_version', versionInfo.version);
+        } catch (error) {
+            console.log('Version check failed:', error);
+        }
     }
 
     // PWA Functions
@@ -224,7 +249,7 @@ class OSEApp {
     }
 
     // Room Management
-    async createRoom() {
+    async createRoom(retryCount = 0) {
         const hostName = document.getElementById('hostName').value.trim();
         const roomTitle = document.getElementById('roomTitle').value.trim();
         const roomLanguage = document.getElementById('roomLanguage').value;
@@ -235,6 +260,8 @@ class OSEApp {
             alert('Please fill in all required fields');
             return;
         }
+
+        console.log(`=== CREATE ROOM ATTEMPT ${retryCount + 1} ===`);
 
         this.userName = hostName;
         this.isHost = true;
@@ -248,30 +275,47 @@ class OSEApp {
             participants: new Map()
         };
 
-        this.showLoadingScreen('Creating room...', 'Setting up peer connection...');
+        const retryText = retryCount > 0 ? ` (Retry ${retryCount})` : '';
+        this.showLoadingScreen(`Creating room...${retryText}`, 'Setting up peer connection...');
         
-        // Set connection timeout (10 seconds)
+        // Set connection timeout (15 seconds)
         const connectionTimeout = setTimeout(() => {
             if (this.peer && !this.currentRoom) {
+                console.error('Room creation timeout');
                 this.peer.destroy();
-                alert('Connection timeout. Please check your internet connection and try again.');
-                this.showMainMenu();
+                
+                if (retryCount < 2) {
+                    console.log('Retrying due to timeout...');
+                    setTimeout(() => {
+                        this.createRoom(retryCount + 1);
+                    }, 1000);
+                } else {
+                    alert('Room creation timed out. Please check your internet connection and try again.');
+                    this.showMainMenu();
+                }
             }
-        }, 10000);
+        }, 15000);
         
         try {
             // Initialize PeerJS with mobile-friendly configuration
             this.peer = new Peer({
-                debug: 1, // Reduce debug level for mobile
+                debug: 1, // Enable debug for troubleshooting
                 config: {
                     iceServers: [
                         { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' },
+                        { urls: 'stun:stun2.l.google.com:19302' },
                         { urls: 'stun:global.stun.twilio.com:3478' }
-                    ]
-                }
+                    ],
+                    iceCandidatePoolSize: 10,
+                    bundlePolicy: 'max-bundle',
+                    rtcpMuxPolicy: 'require'
+                },
+                serialization: 'json',
+                pingInterval: 5000
             });
 
-            this.peer.on('open', (id) => {
+            this.peer.on('open', async (id) => {
                 clearTimeout(connectionTimeout); // Clear timeout on successful connection
                 this.currentRoom = id;
                 this.roomData.participants.set(id, {
@@ -321,8 +365,16 @@ class OSEApp {
 
         } catch (error) {
             console.error('Error creating room:', error);
-            alert('Failed to create room. Please try again.');
-            this.showMainMenu();
+            
+            if (retryCount < 2) {
+                console.log(`Retrying room creation (${retryCount + 1}/2)...`);
+                setTimeout(() => {
+                    this.createRoom(retryCount + 1);
+                }, 2000);
+            } else {
+                alert('Failed to create room after multiple attempts. Please check your internet connection and try again.');
+                this.showMainMenu();
+            }
         }
     }
 
@@ -664,17 +716,29 @@ class OSEApp {
         
         // Safely process Firebase rooms
         if (firebaseRooms && typeof firebaseRooms === 'object') {
+            const now = Date.now();
+            const maxAge = 30 * 60 * 1000; // 30 minutes
+            
             Object.keys(firebaseRooms).forEach(roomId => {
                 try {
+                    const roomData = firebaseRooms[roomId];
+                    
+                    // Check if room is too old
+                    const lastActive = roomData.lastActive || roomData.created || 0;
+                    if (now - lastActive > maxAge) {
+                        console.log('Skipping old room:', roomId, 'Age:', (now - lastActive) / 1000 / 60, 'minutes');
+                        return;
+                    }
+                    
                     // Ensure Firebase room has proper structure
                     const firebaseRoom = { 
-                        ...firebaseRooms[roomId], 
+                        ...roomData, 
                         id: roomId,
                         // Ensure all required fields exist with safe defaults
-                        title: firebaseRooms[roomId].title || 'Untitled Room',
-                        host: firebaseRooms[roomId].host || 'Unknown Host',
-                        language: firebaseRooms[roomId].language || 'english',
-                        level: firebaseRooms[roomId].level || 'intermediate',
+                        title: roomData.title || 'Untitled Room',
+                        host: roomData.host || 'Unknown Host',
+                        language: roomData.language || 'english',
+                        level: roomData.level || 'intermediate',
                         lastActive: firebaseRooms[roomId].lastActive || Date.now(),
                         currentParticipants: firebaseRooms[roomId].currentParticipants || 0,
                         maxParticipants: firebaseRooms[roomId].maxParticipants || 4
@@ -858,83 +922,113 @@ class OSEApp {
         }
     }
 
-    async connectToRoom(roomId, guestName) {
+    async connectToRoom(roomId, guestName, retryCount = 0) {
+        console.log(`=== connectToRoom started (Attempt ${retryCount + 1}) ===`);
+        console.log('Room ID:', roomId);
+        console.log('Guest Name:', guestName);
+        console.log('User Agent:', navigator.userAgent);
+        console.log('Is Mobile:', /Mobi|Android/i.test(navigator.userAgent));
+        
         this.userName = guestName.trim();
         this.isHost = false;
         this.currentRoom = roomId;
         
         this.updateLoadingStep('Initializing peer connection...');
+        console.log('Loading step updated to: Initializing peer connection...');
         
-        // Set overall connection timeout (10 seconds)
+        // Set overall connection timeout (20 seconds for mobile)
         const overallTimeout = setTimeout(() => {
+            console.error('=== OVERALL TIMEOUT TRIGGERED ===');
             if (this.peer) {
+                console.log('Destroying peer due to timeout');
                 this.peer.destroy();
             }
-            alert('Connection timeout. Please check your internet connection and try again.');
+            alert('Connection timeout. This might be due to network issues. Please try again.');
             this.showRoomList();
-        }, 10000);
+        }, 20000);
+        
+        console.log('Overall timeout set for 20 seconds');
         
         try {
-            // Initialize PeerJS with mobile-friendly configuration
+            console.log('Creating PeerJS instance...');
+            // Initialize PeerJS with more robust configuration
             this.peer = new Peer({
-                debug: 1, // Reduce debug level for mobile
+                debug: 1, // Enable debug for troubleshooting
                 config: {
                     iceServers: [
                         { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' },
+                        { urls: 'stun:stun2.l.google.com:19302' },
                         { urls: 'stun:global.stun.twilio.com:3478' }
-                    ]
-                }
+                    ],
+                    iceCandidatePoolSize: 10,
+                    bundlePolicy: 'max-bundle',
+                    rtcpMuxPolicy: 'require'
+                },
+                serialization: 'json',
+                pingInterval: 5000
             });
+            console.log('PeerJS instance created successfully');
 
-            // Peer open timeout (5 seconds)
+            // Peer open timeout (10 seconds for mobile)
             const peerOpenTimeout = setTimeout(() => {
-                console.error('Peer failed to open within 5 seconds');
+                console.error('Peer failed to open within 10 seconds');
                 if (this.peer) {
                     this.peer.destroy();
                 }
                 clearTimeout(overallTimeout);
-                alert('Failed to initialize connection. Please try again.');
+                alert('Failed to initialize connection. Mobile networks can be slow - please try again.');
                 this.showRoomList();
-            }, 5000);
+            }, 10000);
 
             this.peer.on('open', (id) => {
+                console.log('=== PEER OPENED EVENT ===');
                 clearTimeout(peerOpenTimeout);
                 console.log('Peer opened with ID:', id);
+                console.log('Attempting to connect to room:', roomId);
                 this.updateLoadingStep('Connecting to room...');
                 
                 // Connect to the host with timeout
+                console.log('Creating connection to room...');
                 const conn = this.peer.connect(roomId);
+                console.log('Connection object created:', conn);
+                console.log('Waiting for connection open event...');
                 
-                // Connection timeout (3 seconds)
+                // Connection timeout (8 seconds for mobile)
                 const connTimeout = setTimeout(() => {
-                    console.error('Connection to room failed within 3 seconds');
+                    console.error('Connection to room failed within 8 seconds');
                     conn.close();
                     clearTimeout(overallTimeout);
-                    alert('Failed to connect to room. The room might be offline or unreachable.');
+                    alert('Failed to connect to room. The host might be offline or on a different network.');
                     this.showRoomList();
-                }, 3000);
+                }, 8000);
                 
                 conn.on('open', () => {
+                    console.log('=== CONNECTION OPENED EVENT ===');
                     clearTimeout(connTimeout);
                     clearTimeout(overallTimeout);
                     console.log('Connected to room:', roomId);
+                    console.log('Connection state:', conn.open);
                     this.updateLoadingStep('Joining room...');
                     
                     this.handleNewConnection(conn);
                     
                     // Send join request
+                    console.log('Sending join request...');
                     conn.send({
                         type: 'join_request',
                         name: guestName,
                         peerId: id
                     });
+                    console.log('Join request sent');
                 });
 
                 conn.on('error', (err) => {
                     clearTimeout(connTimeout);
                     clearTimeout(overallTimeout);
                     console.error('Connection error:', err);
-                    alert('Failed to join room. The room might be offline or unreachable.');
+                    console.log('Error details:', err.type, err.message);
+                    alert(`Failed to join room: ${err.type || 'network error'}. This is common on mobile networks. Please try again.`);
                     this.showRoomList();
                 });
 
@@ -956,14 +1050,30 @@ class OSEApp {
                 console.error('Peer error:', err);
                 
                 let errorMessage = 'Failed to join room. ';
-                if (err.type === 'network') {
+                if (err.message && err.message.includes('Could not connect to peer')) {
+                    if (retryCount < 2) {
+                        console.log(`Retrying connection (${retryCount + 1}/2) due to peer connection failure...`);
+                        setTimeout(() => {
+                            this.connectToRoom(roomId, guestName, retryCount + 1);
+                        }, 3000);
+                        return;
+                    }
+                    errorMessage += 'The host has left or the room is no longer active. Please try a different room.';
+                } else if (err.type === 'network') {
+                    if (retryCount < 1) {
+                        console.log(`Retrying connection due to network error...`);
+                        setTimeout(() => {
+                            this.connectToRoom(roomId, guestName, retryCount + 1);
+                        }, 2000);
+                        return;
+                    }
                     errorMessage += 'Network connection failed. Please check your internet connection.';
                 } else if (err.type === 'peer-unavailable') {
                     errorMessage += 'The room is not available or has ended.';
                 } else if (err.type === 'browser-incompatible') {
                     errorMessage += 'Your browser does not support WebRTC. Please try a different browser.';
                 } else {
-                    errorMessage += 'Please try again or use a different network.';
+                    errorMessage += `Error: ${err.type || 'connection failed'}. Please try again or use a different network.`;
                 }
                 
                 alert(errorMessage);
