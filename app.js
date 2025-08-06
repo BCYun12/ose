@@ -18,6 +18,24 @@ class OSEApp {
         this.handleUrlParams();
         this.setupPWAInstall();
         this.checkForUpdates();
+        this.logDeviceInfo();
+    }
+    
+    logDeviceInfo() {
+        console.log('=== DEVICE & NETWORK INFO ===');
+        console.log('User Agent:', navigator.userAgent);
+        console.log('Platform:', navigator.platform);
+        console.log('Is Mobile:', /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent));
+        console.log('Online:', navigator.onLine);
+        if (navigator.connection) {
+            console.log('Connection type:', navigator.connection.effectiveType);
+            console.log('Downlink speed:', navigator.connection.downlink, 'Mbps');
+            console.log('RTT:', navigator.connection.rtt, 'ms');
+        }
+        console.log('WebRTC support:', !!window.RTCPeerConnection);
+        console.log('Current URL:', window.location.href);
+        console.log('Protocol:', window.location.protocol);
+        console.log('=======================');
     }
 
     async checkForUpdates() {
@@ -204,6 +222,42 @@ class OSEApp {
             e.preventDefault();
             this.joinRoom();
         });
+        
+        // Mobile-specific event listeners
+        if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
+            console.log('Setting up mobile-specific event listeners');
+            
+            // Handle page visibility changes (mobile apps going to background)
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    console.log('App went to background - maintaining peer connection');
+                } else {
+                    console.log('App returned to foreground - checking connection status');
+                    if (this.peer && this.currentRoom) {
+                        console.log('Peer status:', this.peer.disconnected ? 'disconnected' : 'connected');
+                        if (this.peer.disconnected) {
+                            console.log('Peer disconnected while in background, attempting reconnection...');
+                            // Note: Don't auto-reconnect to avoid loops, let user retry
+                        }
+                    }
+                }
+            });
+            
+            // Handle network status changes
+            window.addEventListener('online', () => {
+                console.log('Network came back online');
+                if (this.peer && this.peer.disconnected && this.currentRoom) {
+                    this.addSystemMessage('Network connection restored. You may need to rejoin the room.');
+                }
+            });
+            
+            window.addEventListener('offline', () => {
+                console.log('Network went offline');
+                if (this.currentRoom) {
+                    this.addSystemMessage('Network connection lost. Trying to maintain connection...');
+                }
+            });
+        }
     }
 
     // Screen Navigation
@@ -278,41 +332,68 @@ class OSEApp {
         const retryText = retryCount > 0 ? ` (Retry ${retryCount})` : '';
         this.showLoadingScreen(`Creating room...${retryText}`, 'Setting up peer connection...');
         
-        // Set connection timeout (15 seconds)
+        // Set connection timeout (longer for mobile)
+        const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+        const timeoutDuration = isMobile ? 25000 : 15000;
         const connectionTimeout = setTimeout(() => {
             if (this.peer && !this.currentRoom) {
-                console.error('Room creation timeout');
+                console.error('Room creation timeout after', timeoutDuration/1000, 'seconds');
                 this.peer.destroy();
                 
-                if (retryCount < 2) {
-                    console.log('Retrying due to timeout...');
+                if (retryCount < 3) {
+                    console.log('Retrying room creation due to timeout... (attempt', retryCount + 2, '/4)');
                     setTimeout(() => {
                         this.createRoom(retryCount + 1);
-                    }, 1000);
+                    }, 2000);
                 } else {
-                    alert('Room creation timed out. Please check your internet connection and try again.');
+                    alert(`Room creation failed after ${retryCount + 1} attempts. This can happen on mobile networks. Please try again or check your connection.`);
                     this.showMainMenu();
                 }
             }
-        }, 15000);
+        }, timeoutDuration);
         
         try {
-            // Initialize PeerJS with mobile-friendly configuration
+            // Initialize PeerJS with enhanced mobile configuration
+            const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+            console.log('Device type:', isMobile ? 'Mobile' : 'Desktop');
+            
             this.peer = new Peer({
-                debug: 1, // Enable debug for troubleshooting
+                debug: 2, // Maximum debug for mobile troubleshooting
                 config: {
                     iceServers: [
+                        // Google STUN servers
                         { urls: 'stun:stun.l.google.com:19302' },
                         { urls: 'stun:stun1.l.google.com:19302' },
                         { urls: 'stun:stun2.l.google.com:19302' },
-                        { urls: 'stun:global.stun.twilio.com:3478' }
+                        { urls: 'stun:stun3.l.google.com:19302' },
+                        { urls: 'stun:stun4.l.google.com:19302' },
+                        // Additional STUN servers for better mobile support
+                        { urls: 'stun:global.stun.twilio.com:3478' },
+                        { urls: 'stun:stun.nextcloud.com:443' },
+                        { urls: 'stun:stun.sipgate.net:10000' },
+                        // Free TURN servers for mobile NAT traversal
+                        {
+                            urls: 'turn:openrelay.metered.ca:80',
+                            username: 'openrelayproject',
+                            credential: 'openrelayproject'
+                        },
+                        {
+                            urls: 'turn:openrelay.metered.ca:443',
+                            username: 'openrelayproject',
+                            credential: 'openrelayproject'
+                        }
                     ],
-                    iceCandidatePoolSize: 10,
+                    iceCandidatePoolSize: isMobile ? 15 : 10,
                     bundlePolicy: 'max-bundle',
-                    rtcpMuxPolicy: 'require'
+                    rtcpMuxPolicy: 'require',
+                    iceTransportPolicy: 'all', // Allow both STUN and TURN
+                    iceCandidateTimeout: isMobile ? 8000 : 5000
                 },
                 serialization: 'json',
-                pingInterval: 5000
+                pingInterval: isMobile ? 8000 : 5000,
+                host: 'broker.peerjs.com', // Explicit broker for reliability
+                port: 443,
+                secure: true
             });
 
             this.peer.on('open', async (id) => {
@@ -335,6 +416,12 @@ class OSEApp {
                 this.addSystemMessage(`Room created! Room Code: ${shortCode}`);
                 this.addSystemMessage(`Share: ${shareUrl}`);
                 this.addShareButton(shareUrl);
+                
+                // Mobile-specific notifications
+                const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+                if (isMobile) {
+                    this.addSystemMessage('📱 Mobile tip: Keep this app in foreground for best connection stability.');
+                }
             });
 
             this.peer.on('connection', (conn) => {
@@ -936,50 +1023,91 @@ class OSEApp {
         this.updateLoadingStep('Initializing peer connection...');
         console.log('Loading step updated to: Initializing peer connection...');
         
-        // Set overall connection timeout (20 seconds for mobile)
+        // Set overall connection timeout (longer for mobile)
+        const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+        const overallTimeoutDuration = isMobile ? 35000 : 20000;
         const overallTimeout = setTimeout(() => {
             console.error('=== OVERALL TIMEOUT TRIGGERED ===');
+            console.log('Timeout duration was:', overallTimeoutDuration/1000, 'seconds');
             if (this.peer) {
                 console.log('Destroying peer due to timeout');
                 this.peer.destroy();
             }
-            alert('Connection timeout. This might be due to network issues. Please try again.');
-            this.showRoomList();
-        }, 20000);
+            
+            if (retryCount < 2) {
+                console.log('Retrying connection due to timeout... (attempt', retryCount + 2, '/3)');
+                setTimeout(() => {
+                    this.connectToRoom(roomId, guestName, retryCount + 1);
+                }, 3000);
+            } else {
+                alert(`Connection failed after ${retryCount + 1} attempts. Mobile networks can have connectivity issues. Please check your internet connection and try again.`);
+                this.showRoomList();
+            }
+        }, overallTimeoutDuration);
         
         console.log('Overall timeout set for 20 seconds');
         
         try {
             console.log('Creating PeerJS instance...');
-            // Initialize PeerJS with more robust configuration
+            // Initialize PeerJS with enhanced mobile configuration for joining
+            const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+            console.log('=== DEVICE DETECTION ===');
+            console.log('User Agent:', navigator.userAgent);
+            console.log('Is Mobile:', isMobile);
+            console.log('Network type:', navigator.connection ? navigator.connection.effectiveType : 'unknown');
+            
             this.peer = new Peer({
-                debug: 1, // Enable debug for troubleshooting
+                debug: 2, // Maximum debug for mobile troubleshooting
                 config: {
                     iceServers: [
+                        // Google STUN servers
                         { urls: 'stun:stun.l.google.com:19302' },
                         { urls: 'stun:stun1.l.google.com:19302' },
                         { urls: 'stun:stun2.l.google.com:19302' },
-                        { urls: 'stun:global.stun.twilio.com:3478' }
+                        { urls: 'stun:stun3.l.google.com:19302' },
+                        { urls: 'stun:stun4.l.google.com:19302' },
+                        // Additional STUN servers for better mobile support
+                        { urls: 'stun:global.stun.twilio.com:3478' },
+                        { urls: 'stun:stun.nextcloud.com:443' },
+                        { urls: 'stun:stun.sipgate.net:10000' },
+                        // Free TURN servers for mobile NAT traversal
+                        {
+                            urls: 'turn:openrelay.metered.ca:80',
+                            username: 'openrelayproject',
+                            credential: 'openrelayproject'
+                        },
+                        {
+                            urls: 'turn:openrelay.metered.ca:443',
+                            username: 'openrelayproject',
+                            credential: 'openrelayproject'
+                        }
                     ],
-                    iceCandidatePoolSize: 10,
+                    iceCandidatePoolSize: isMobile ? 15 : 10,
                     bundlePolicy: 'max-bundle',
-                    rtcpMuxPolicy: 'require'
+                    rtcpMuxPolicy: 'require',
+                    iceTransportPolicy: 'all', // Allow both STUN and TURN
+                    iceCandidateTimeout: isMobile ? 10000 : 5000
                 },
                 serialization: 'json',
-                pingInterval: 5000
+                pingInterval: isMobile ? 10000 : 5000,
+                host: 'broker.peerjs.com', // Explicit broker for reliability
+                port: 443,
+                secure: true
             });
             console.log('PeerJS instance created successfully');
 
-            // Peer open timeout (10 seconds for mobile)
+            // Peer open timeout (longer for mobile)
+            const peerOpenTimeoutDuration = isMobile ? 15000 : 10000;
             const peerOpenTimeout = setTimeout(() => {
-                console.error('Peer failed to open within 10 seconds');
+                console.error('Peer failed to open within', peerOpenTimeoutDuration/1000, 'seconds');
+                console.log('This is common on mobile networks or slow connections');
                 if (this.peer) {
                     this.peer.destroy();
                 }
                 clearTimeout(overallTimeout);
-                alert('Failed to initialize connection. Mobile networks can be slow - please try again.');
+                alert(`Failed to initialize connection within ${peerOpenTimeoutDuration/1000} seconds. Mobile networks can be slow - please try again.`);
                 this.showRoomList();
-            }, 10000);
+            }, peerOpenTimeoutDuration);
 
             this.peer.on('open', (id) => {
                 console.log('=== PEER OPENED EVENT ===');
@@ -988,20 +1116,44 @@ class OSEApp {
                 console.log('Attempting to connect to room:', roomId);
                 this.updateLoadingStep('Connecting to room...');
                 
-                // Connect to the host with timeout
+                // Connect to the host with timeout and mobile-specific settings
                 console.log('Creating connection to room...');
-                const conn = this.peer.connect(roomId);
+                const connOptions = {
+                    reliable: true,  // Ensure reliable data channel
+                    serialization: 'json'
+                };
+                const conn = this.peer.connect(roomId, connOptions);
                 console.log('Connection object created:', conn);
+                console.log('Connection options:', connOptions);
                 console.log('Waiting for connection open event...');
                 
-                // Connection timeout (8 seconds for mobile)
+                // Monitor connection state changes
+                if (conn.peerConnection) {
+                    console.log('Setting up connection state monitoring...');
+                    conn.peerConnection.oniceconnectionstatechange = () => {
+                        const iceState = conn.peerConnection.iceConnectionState;
+                        console.log('ICE connection state:', iceState);
+                        if (iceState === 'checking') {
+                            this.updateLoadingStep('Establishing secure connection...');
+                        } else if (iceState === 'connected' || iceState === 'completed') {
+                            console.log('ICE connection successful!');
+                        } else if (iceState === 'failed' || iceState === 'disconnected') {
+                            console.warn('ICE connection issues detected:', iceState);
+                        }
+                    };
+                }
+                
+                // Connection timeout (longer for mobile)
+                const connTimeoutDuration = isMobile ? 12000 : 8000;
                 const connTimeout = setTimeout(() => {
-                    console.error('Connection to room failed within 8 seconds');
+                    console.error('Connection to room failed within', connTimeoutDuration/1000, 'seconds');
+                    console.log('Connection state before timeout:', conn.open);
+                    console.log('Peer connection state:', conn.peerConnection ? conn.peerConnection.connectionState : 'N/A');
                     conn.close();
                     clearTimeout(overallTimeout);
-                    alert('Failed to connect to room. The host might be offline or on a different network.');
+                    alert(`Failed to connect to room within ${connTimeoutDuration/1000} seconds. The host might be offline, or there could be network issues between PC and mobile.`);
                     this.showRoomList();
-                }, 8000);
+                }, connTimeoutDuration);
                 
                 conn.on('open', () => {
                     console.log('=== CONNECTION OPENED EVENT ===');
@@ -1009,26 +1161,51 @@ class OSEApp {
                     clearTimeout(overallTimeout);
                     console.log('Connected to room:', roomId);
                     console.log('Connection state:', conn.open);
-                    this.updateLoadingStep('Joining room...');
+                    console.log('Connection reliable:', conn.reliable);
+                    console.log('Peer connection state:', conn.peerConnection ? conn.peerConnection.connectionState : 'N/A');
+                    console.log('ICE connection state:', conn.peerConnection ? conn.peerConnection.iceConnectionState : 'N/A');
+                    this.updateLoadingStep('Successfully connected! Joining room...');
                     
                     this.handleNewConnection(conn);
                     
-                    // Send join request
+                    // Send join request with additional info for debugging
                     console.log('Sending join request...');
-                    conn.send({
+                    const joinRequest = {
                         type: 'join_request',
                         name: guestName,
-                        peerId: id
-                    });
-                    console.log('Join request sent');
+                        peerId: id,
+                        userAgent: navigator.userAgent.substring(0, 100), // First 100 chars
+                        timestamp: Date.now(),
+                        connectionType: isMobile ? 'mobile' : 'desktop'
+                    };
+                    console.log('Join request data:', joinRequest);
+                    conn.send(joinRequest);
+                    console.log('Join request sent successfully');
                 });
 
                 conn.on('error', (err) => {
                     clearTimeout(connTimeout);
                     clearTimeout(overallTimeout);
-                    console.error('Connection error:', err);
-                    console.log('Error details:', err.type, err.message);
-                    alert(`Failed to join room: ${err.type || 'network error'}. This is common on mobile networks. Please try again.`);
+                    console.error('=== CONNECTION ERROR EVENT ===');
+                    console.error('Error object:', err);
+                    console.log('Error type:', err.type);
+                    console.log('Error message:', err.message);
+                    console.log('Connection state before error:', conn.open);
+                    console.log('PeerConnection state:', conn.peerConnection ? conn.peerConnection.connectionState : 'N/A');
+                    console.log('ICE connection state:', conn.peerConnection ? conn.peerConnection.iceConnectionState : 'N/A');
+                    
+                    let errorMessage = 'Connection failed';
+                    if (err.type === 'peer-unavailable') {
+                        errorMessage = 'Room host is not available. They might have closed the app or lost connection.';
+                    } else if (err.type === 'network') {
+                        errorMessage = 'Network error. This is common on mobile networks with strict firewalls.';
+                    } else if (err.type === 'webrtc') {
+                        errorMessage = 'WebRTC connection failed. Try connecting to WiFi or check if your mobile browser supports WebRTC.';
+                    } else {
+                        errorMessage = `Connection error (${err.type || 'unknown'}). Mobile networks can have connectivity issues.`;
+                    }
+                    
+                    alert(errorMessage + ' Please try again.');
                     this.showRoomList();
                 });
 
@@ -1045,7 +1222,26 @@ class OSEApp {
                 this.handleIncomingCall(call);
             });
 
+            // Monitor ICE connection state for mobile debugging
+            this.peer.on('connection', (conn) => {
+                if (conn.peerConnection) {
+                    console.log('=== MONITORING ICE CONNECTION ===');
+                    conn.peerConnection.oniceconnectionstatechange = () => {
+                        console.log('ICE connection state changed to:', conn.peerConnection.iceConnectionState);
+                        if (conn.peerConnection.iceConnectionState === 'failed') {
+                            console.error('ICE connection failed - this is common on mobile networks');
+                            // Don't automatically retry here, let the error handler deal with it
+                        }
+                    };
+                    
+                    conn.peerConnection.onconnectionstatechange = () => {
+                        console.log('Peer connection state changed to:', conn.peerConnection.connectionState);
+                    };
+                }
+            });
+            
             this.peer.on('error', (err) => {
+                clearTimeout(peerOpenTimeout);
                 clearTimeout(overallTimeout);
                 console.error('Peer error:', err);
                 
