@@ -35,7 +35,7 @@ const server = http.createServer((req, res) => {
   res.end(content);
 });
 
-const PORT = 8001;
+const PORT = 8002;
 server.listen(PORT, () => {
   console.log(`🚀 Development server running at http://localhost:${PORT}`);
   console.log('📝 No cache headers enabled for development');

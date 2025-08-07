@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ose-v1.2.0';
+const CACHE_NAME = 'ose-v1.2.1';
 const urlsToCache = [
   './',
   './index.html',

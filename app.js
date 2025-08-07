@@ -357,44 +357,31 @@ class OSEApp {
             const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
             console.log('Device type:', isMobile ? 'Mobile' : 'Desktop');
             
-            this.peer = new Peer({
-                debug: 2, // Maximum debug for mobile troubleshooting
+            // Try different PeerJS configurations for better HTTPS compatibility
+            const peerConfig = {
+                debug: 2,
                 config: {
                     iceServers: [
-                        // Google STUN servers
                         { urls: 'stun:stun.l.google.com:19302' },
                         { urls: 'stun:stun1.l.google.com:19302' },
-                        { urls: 'stun:stun2.l.google.com:19302' },
-                        { urls: 'stun:stun3.l.google.com:19302' },
-                        { urls: 'stun:stun4.l.google.com:19302' },
-                        // Additional STUN servers for better mobile support
-                        { urls: 'stun:global.stun.twilio.com:3478' },
-                        { urls: 'stun:stun.nextcloud.com:443' },
-                        { urls: 'stun:stun.sipgate.net:10000' },
-                        // Free TURN servers for mobile NAT traversal
-                        {
-                            urls: 'turn:openrelay.metered.ca:80',
-                            username: 'openrelayproject',
-                            credential: 'openrelayproject'
-                        },
-                        {
-                            urls: 'turn:openrelay.metered.ca:443',
-                            username: 'openrelayproject',
-                            credential: 'openrelayproject'
-                        }
+                        { urls: 'stun:stun2.l.google.com:19302' }
                     ],
                     iceCandidatePoolSize: isMobile ? 15 : 10,
                     bundlePolicy: 'max-bundle',
-                    rtcpMuxPolicy: 'require',
-                    iceTransportPolicy: 'all', // Allow both STUN and TURN
-                    iceCandidateTimeout: isMobile ? 8000 : 5000
+                    rtcpMuxPolicy: 'require'
                 },
                 serialization: 'json',
-                pingInterval: isMobile ? 8000 : 5000,
-                host: 'broker.peerjs.com', // Explicit broker for reliability
-                port: 443,
-                secure: true
-            });
+                pingInterval: isMobile ? 8000 : 5000
+            };
+            
+            // For HTTPS environments like GitHub Pages, ensure secure connection
+            if (window.location.protocol === 'https:') {
+                console.log('Using HTTPS - ensuring secure PeerJS connection');
+                peerConfig.secure = true;
+            }
+            
+            console.log('Creating PeerJS with config:', peerConfig);
+            this.peer = new Peer(peerConfig);
 
             this.peer.on('open', async (id) => {
                 clearTimeout(connectionTimeout); // Clear timeout on successful connection
@@ -433,21 +420,40 @@ class OSEApp {
             });
 
             this.peer.on('error', (err) => {
-                console.error('Peer error:', err);
-                let errorMessage = 'Failed to create room. ';
+                clearTimeout(connectionTimeout);
+                console.error('=== PEER ERROR DURING ROOM CREATION ===');
+                console.error('Error type:', err.type);
+                console.error('Error message:', err.message);
+                console.error('Full error object:', err);
+                console.log('Current retry count:', retryCount);
+                console.log('Location:', window.location.href);
+                console.log('Protocol:', window.location.protocol);
                 
-                if (err.type === 'network') {
-                    errorMessage += 'Network connection failed. Please check your internet connection.';
-                } else if (err.type === 'peer-unavailable') {
-                    errorMessage += 'Peer connection unavailable.';
-                } else if (err.type === 'browser-incompatible') {
-                    errorMessage += 'Your browser does not support WebRTC.';
+                let errorMessage = 'Failed to create room';
+                if (err.type === 'browser-incompatible') {
+                    errorMessage = 'Your browser does not support WebRTC. Please use Chrome, Firefox, or Safari.';
+                } else if (err.type === 'network') {
+                    errorMessage = 'Network connection failed. Please check your internet connection and try again.';
+                } else if (err.type === 'server-error') {
+                    errorMessage = 'PeerJS server is temporarily unavailable. Please try again in a few moments.';
+                } else if (err.type === 'socket-error' || err.type === 'socket-closed') {
+                    errorMessage = 'Connection to PeerJS server failed. This might be due to firewall restrictions.';
+                } else if (err.type === 'ssl-unavailable') {
+                    errorMessage = 'Secure connection failed. Please make sure you are using HTTPS.';
                 } else {
-                    errorMessage += 'Please try again or use a different browser.';
+                    errorMessage = `Connection failed: ${err.type || 'unknown error'}`;
                 }
                 
-                alert(errorMessage);
-                this.showMainMenu();
+                if (retryCount < 3) {
+                    console.log('Retrying room creation due to peer error... (attempt', retryCount + 2, '/4)');
+                    this.updateLoadingStep(`Connection failed. Retrying... (${retryCount + 2}/4)`);
+                    setTimeout(() => {
+                        this.createRoom(retryCount + 1);
+                    }, 3000);
+                } else {
+                    alert(`${errorMessage}\n\nAfter ${retryCount + 1} attempts failed. Please refresh the page and try again.`);
+                    this.showMainMenu();
+                }
             });
 
         } catch (error) {
@@ -1089,10 +1095,8 @@ class OSEApp {
                     iceCandidateTimeout: isMobile ? 10000 : 5000
                 },
                 serialization: 'json',
-                pingInterval: isMobile ? 10000 : 5000,
-                host: 'broker.peerjs.com', // Explicit broker for reliability
-                port: 443,
-                secure: true
+                pingInterval: isMobile ? 10000 : 5000
+                // Remove explicit host/port to use default PeerJS cloud broker
             });
             console.log('PeerJS instance created successfully');
 
