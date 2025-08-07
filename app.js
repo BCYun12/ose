@@ -9,6 +9,17 @@ class OSEApp {
         this.roomData = {};
         this.firebaseDB = new FirebaseDB();
         
+        // AI Voice Features
+        this.speechRecognition = null;
+        this.speechSynthesis = window.speechSynthesis;
+        this.isListening = false;
+        this.currentLanguage = 'en-US'; // Default to English
+        this.aiEnabled = false;
+        this.selectedAIProvider = null;
+        this.aiCredentials = null;
+        this.practiceMode = 'daily';
+        this.aiSpeakerEnabled = true;
+        
         this.init();
     }
 
@@ -266,6 +277,14 @@ class OSEApp {
             screen.classList.add('hidden');
         });
         document.getElementById(screenId).classList.remove('hidden');
+    }
+    
+    showAIPartner() {
+        this.showScreen('aiPartner');
+    }
+    
+    showAILogin() {
+        this.showScreen('aiLoginScreen');
     }
 
     showMainMenu() {
@@ -1462,6 +1481,245 @@ function handleKeyPress(event) {
 document.addEventListener('DOMContentLoaded', () => {
     app = new OSEApp();
 });
+
+// AI Partner Functions - Add to OSEApp class methods
+OSEApp.prototype.selectAIProvider = function(provider) {
+    // Remove selected class from all buttons
+    document.querySelectorAll('.provider-btn').forEach(btn => {
+        btn.classList.remove('selected');
+    });
+    
+    // Add selected class to clicked button
+    document.getElementById(provider + 'Btn').classList.add('selected');
+    
+    this.selectedAIProvider = provider;
+    
+    // Update login screen based on selected provider
+    const providerInfo = {
+        'chatgpt': { name: 'ChatGPT Plus', logo: '🧠' },
+        'gemini': { name: 'Gemini Advanced', logo: '💎' },
+        'claude': { name: 'Claude Pro', logo: '🎭' }
+    };
+    
+    const info = providerInfo[provider];
+    document.getElementById('selectedAIName').textContent = info.name;
+    document.getElementById('aiProviderName').textContent = info.name;
+    document.getElementById('aiProviderLogo').textContent = info.logo;
+    
+    // Show login screen after short delay
+    setTimeout(() => {
+        this.showAILogin();
+    }, 300);
+};
+
+OSEApp.prototype.setPracticeMode = function(mode) {
+    // Remove active class from all mode buttons
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Add active class to clicked button
+    event.target.classList.add('active');
+    
+    this.practiceMode = mode;
+    
+    // Clear previous messages
+    document.getElementById('aiChatMessages').innerHTML = '';
+    
+    // Add initial AI message based on mode
+    const modeMessages = {
+        'interview': "Hello! I'm here to help you practice job interviews. Let's start with a common question: Tell me about yourself.",
+        'travel': "Hi there! I'm your travel English partner. Let's practice some travel scenarios. Where would you like to go?",
+        'daily': "Hey! I'm excited to chat with you in English. How are you doing today?",
+        'business': "Good day! I'm here to help you practice business English. Let's discuss professional communication."
+    };
+    
+    this.addAIMessage(modeMessages[mode], 'ai');
+    
+    // Show chat screen
+    document.getElementById('aiSetupScreen').classList.add('hidden');
+    document.getElementById('aiChatScreen').classList.remove('hidden');
+};
+
+OSEApp.prototype.setPracticeLanguage = function() {
+    const language = document.getElementById('practiceLanguage').value;
+    const langMap = {
+        'en': 'en-US',
+        'ja': 'ja-JP', 
+        'ko': 'ko-KR'
+    };
+    this.currentLanguage = langMap[language];
+};
+
+OSEApp.prototype.addAIMessage = function(text, sender) {
+    const messagesContainer = document.getElementById('aiChatMessages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `ai-message ${sender}`;
+    
+    const time = new Date().toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+    
+    messageDiv.innerHTML = `
+        <div>${text}</div>
+        <div class="message-time">${time}</div>
+    `;
+    
+    messagesContainer.appendChild(messageDiv);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    
+    // If it's an AI message and speaker is enabled, speak it
+    if (sender === 'ai' && this.aiSpeakerEnabled) {
+        this.speakText(text);
+    }
+};
+
+OSEApp.prototype.speakText = function(text) {
+    if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = this.currentLanguage;
+        utterance.rate = 0.9;
+        window.speechSynthesis.speak(utterance);
+    }
+};
+
+OSEApp.prototype.toggleAIMic = function() {
+    const micBtn = document.getElementById('aiMicBtn');
+    const micIcon = document.getElementById('aiMicIcon');
+    const micText = document.getElementById('aiMicText');
+    
+    if (!this.isListening) {
+        this.startListening();
+        micIcon.textContent = '🔴';
+        micText.textContent = 'Listening...';
+        micBtn.style.background = 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)';
+    } else {
+        this.stopListening();
+        micIcon.textContent = '🎤';
+        micText.textContent = 'Hold to Speak';
+        micBtn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+    }
+};
+
+OSEApp.prototype.startListening = function() {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        this.speechRecognition = new SpeechRecognition();
+        
+        this.speechRecognition.lang = this.currentLanguage;
+        this.speechRecognition.continuous = false;
+        this.speechRecognition.interimResults = false;
+        
+        this.speechRecognition.onstart = () => {
+            this.isListening = true;
+            console.log('Voice recognition started');
+        };
+        
+        this.speechRecognition.onresult = (event) => {
+            const transcript = event.results[0][0].transcript;
+            console.log('Voice input:', transcript);
+            this.addAIMessage(transcript, 'user');
+            this.processAIResponse(transcript);
+        };
+        
+        this.speechRecognition.onerror = (event) => {
+            console.error('Speech recognition error:', event.error);
+            this.addAIMessage('Sorry, I couldn\'t hear you clearly. Please try again.', 'ai');
+            this.toggleAIMic(); // Reset button state
+        };
+        
+        this.speechRecognition.onend = () => {
+            this.isListening = false;
+            this.toggleAIMic(); // Reset button state
+        };
+        
+        this.speechRecognition.start();
+    } else {
+        alert('Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari.');
+    }
+};
+
+OSEApp.prototype.stopListening = function() {
+    if (this.speechRecognition) {
+        this.speechRecognition.stop();
+    }
+    this.isListening = false;
+};
+
+OSEApp.prototype.toggleAISpeaker = function() {
+    this.aiSpeakerEnabled = !this.aiSpeakerEnabled;
+    const speakerIcon = document.getElementById('aiSpeakerIcon');
+    const speakerBtn = document.getElementById('aiSpeakerBtn');
+    
+    if (this.aiSpeakerEnabled) {
+        speakerIcon.textContent = '🔊';
+        speakerBtn.style.background = '#667eea';
+    } else {
+        speakerIcon.textContent = '🔇';
+        speakerBtn.style.background = '#999';
+    }
+};
+
+OSEApp.prototype.processAIResponse = function(userInput) {
+    // For now, we'll add a placeholder response
+    // Later this will connect to the actual AI services
+    const responses = {
+        'interview': [
+            "That's a great start! Can you tell me more about your experience with teamwork?",
+            "Interesting background! What do you consider your biggest professional achievement?",
+            "Good point! How do you handle challenging situations at work?"
+        ],
+        'travel': [
+            "That sounds like an amazing destination! What's your main reason for visiting?",
+            "Great choice! Do you need help with booking accommodations?",
+            "Wonderful! What activities are you most excited about?"
+        ],
+        'daily': [
+            "That's nice to hear! What are your plans for today?",
+            "Sounds interesting! Tell me more about that.",
+            "I see! How do you usually spend your free time?"
+        ],
+        'business': [
+            "That's a good business perspective! How would you implement that strategy?",
+            "Excellent point! What challenges do you foresee in that approach?",
+            "Very professional! Can you elaborate on the expected outcomes?"
+        ]
+    };
+    
+    const modeResponses = responses[this.practiceMode];
+    const randomResponse = modeResponses[Math.floor(Math.random() * modeResponses.length)];
+    
+    // Simulate thinking delay
+    setTimeout(() => {
+        this.addAIMessage(randomResponse, 'ai');
+    }, 1000);
+};
+
+// Global functions for onclick handlers
+function showAIPartner() {
+    app.showAIPartner();
+}
+
+function selectAIProvider(provider) {
+    app.selectAIProvider(provider);
+}
+
+function setPracticeMode(mode) {
+    app.setPracticeMode(mode);
+}
+
+function setPracticeLanguage() {
+    app.setPracticeLanguage();
+}
+
+function toggleAIMic() {
+    app.toggleAIMic();
+}
+
+function toggleAISpeaker() {
+    app.toggleAISpeaker();
+}
 
 // Cleanup on page unload
 window.addEventListener('beforeunload', () => {

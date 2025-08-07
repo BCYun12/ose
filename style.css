@@ -582,3 +582,266 @@ header p {
         min-width: 120px;
     }
 }
+
+/* AI Partner Styles */
+.btn.ai-partner {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+.btn.ai-partner:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+}
+
+/* AI Setup Screen */
+.ai-setup {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.ai-status {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.status-disconnected {
+    background: #ffebee;
+    color: #c62828;
+    padding: 15px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.status-connected {
+    background: #e8f5e8;
+    color: #2e7d32;
+    padding: 15px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.status-icon {
+    font-size: 20px;
+}
+
+/* AI Providers */
+.ai-providers h3 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.provider-buttons {
+    display: grid;
+    gap: 15px;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+.provider-btn {
+    background: white;
+    border: 2px solid #e0e0e0;
+    border-radius: 15px;
+    padding: 20px;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.provider-btn:hover {
+    border-color: #667eea;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+}
+
+.provider-btn.selected {
+    border-color: #667eea;
+    background: #f8f9ff;
+}
+
+.provider-icon {
+    font-size: 40px;
+    margin-bottom: 10px;
+}
+
+.provider-name {
+    font-weight: bold;
+    font-size: 18px;
+    margin-bottom: 5px;
+    color: #333;
+}
+
+.provider-desc {
+    color: #666;
+    font-size: 14px;
+}
+
+/* AI Login Screen */
+.ai-login-form {
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.provider-info {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.provider-logo {
+    font-size: 60px;
+    margin-bottom: 15px;
+}
+
+.subscription-note {
+    background: #fff3e0;
+    border: 1px solid #ffb74d;
+    border-radius: 8px;
+    padding: 10px;
+    margin: 15px 0;
+}
+
+.subscription-note p {
+    margin: 0;
+    color: #f57c00;
+    font-size: 14px;
+}
+
+.security-note {
+    background: #e8f5e8;
+    border: 1px solid #81c784;
+    border-radius: 8px;
+    padding: 10px;
+    margin: 15px 0;
+}
+
+.security-note p {
+    margin: 0;
+    color: #2e7d32;
+    font-size: 12px;
+}
+
+/* AI Chat Interface */
+.ai-chat {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.practice-modes, .language-selection {
+    margin-bottom: 30px;
+}
+
+.mode-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.mode-btn {
+    background: white;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 15px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.mode-btn:hover {
+    border-color: #667eea;
+    background: #f8f9ff;
+}
+
+.mode-btn.active {
+    border-color: #667eea;
+    background: #667eea;
+    color: white;
+}
+
+/* Language Selection */
+.language-selection select {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 16px;
+    background: white;
+}
+
+/* Voice Chat */
+.voice-chat {
+    background: #f8f9fa;
+    border-radius: 15px;
+    padding: 20px;
+    min-height: 300px;
+}
+
+.ai-messages {
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
+    min-height: 200px;
+    margin-bottom: 20px;
+    border: 1px solid #e0e0e0;
+}
+
+.voice-controls {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    align-items: center;
+}
+
+.voice-btn.large {
+    padding: 20px 40px;
+    font-size: 18px;
+    border-radius: 50px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.voice-btn.large:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+}
+
+.voice-btn.large:active {
+    background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+}
+
+/* AI Message Styles */
+.ai-message {
+    margin-bottom: 15px;
+    padding: 12px 16px;
+    border-radius: 18px;
+    max-width: 80%;
+    word-wrap: break-word;
+}
+
+.ai-message.user {
+    background: #667eea;
+    color: white;
+    margin-left: auto;
+    text-align: right;
+}
+
+.ai-message.ai {
+    background: #f1f3f4;
+    color: #333;
+    margin-right: auto;
+}
+
+.message-time {
+    font-size: 11px;
+    opacity: 0.7;
+    margin-top: 5px;
+}
+}
