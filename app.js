@@ -234,6 +234,12 @@ class OSEApp {
             this.joinRoom();
         });
         
+        // AI Login Form
+        document.getElementById('aiLoginForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleAILogin();
+        });
+        
         // Mobile-specific event listeners
         if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
             console.log('Setting up mobile-specific event listeners');
@@ -1483,6 +1489,166 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // AI Partner Functions - Add to OSEApp class methods
+OSEApp.prototype.handleAILogin = function() {
+    const email = document.getElementById('aiEmail').value.trim();
+    const password = document.getElementById('aiPassword').value.trim();
+    
+    if (!email || !password) {
+        alert('Please enter both email and password');
+        return;
+    }
+    
+    // Show loading state
+    const submitBtn = document.querySelector('#aiLoginForm button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = 'Connecting...';
+    submitBtn.disabled = true;
+    
+    // Store credentials securely
+    this.aiCredentials = {
+        email: email,
+        password: password,
+        provider: this.selectedAIProvider
+    };
+    
+    // Attempt to connect to AI service
+    this.connectToAI()
+        .then((success) => {
+            if (success) {
+                // Update connection status
+                this.updateAIConnectionStatus(true);
+                
+                // Show success message
+                this.addSystemMessage(`Successfully connected to ${this.getProviderName()}!`);
+                
+                // Go back to AI Partner main screen
+                this.showAIPartner();
+                
+                // Clear password from memory for security
+                document.getElementById('aiPassword').value = '';
+            } else {
+                throw new Error('Login failed');
+            }
+        })
+        .catch((error) => {
+            console.error('AI Login error:', error);
+            alert(`Failed to connect to ${this.getProviderName()}. Please check your credentials and try again.`);
+        })
+        .finally(() => {
+            // Reset button state
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+        });
+};
+
+OSEApp.prototype.connectToAI = function() {
+    return new Promise((resolve, reject) => {
+        // Simulate connection attempt with timeout
+        console.log(`Attempting to connect to ${this.selectedAIProvider}...`);
+        console.log('Email:', this.aiCredentials.email);
+        
+        // For now, we'll simulate the connection process
+        // In real implementation, this would make actual API calls
+        setTimeout(() => {
+            // Simulate success/failure based on email format
+            if (this.aiCredentials.email.includes('@')) {
+                resolve(true);
+            } else {
+                reject(new Error('Invalid email format'));
+            }
+        }, 2000);
+    });
+};
+
+OSEApp.prototype.updateAIConnectionStatus = function(connected) {
+    const statusElement = document.getElementById('aiConnectionStatus');
+    const statusIcon = statusElement.querySelector('.status-icon');
+    const statusText = statusElement.querySelector('.status-text');
+    const connectedOptions = document.getElementById('aiConnectedOptions');
+    const providerSelection = document.getElementById('aiProviderSelection');
+    
+    if (connected) {
+        statusElement.className = 'status-connected';
+        statusIcon.textContent = '✅';
+        statusText.textContent = `Connected to ${this.getProviderName()}`;
+        connectedOptions.classList.remove('hidden');
+        providerSelection.style.opacity = '0.5';
+        providerSelection.style.pointerEvents = 'none';
+        this.aiEnabled = true;
+    } else {
+        statusElement.className = 'status-disconnected';
+        statusIcon.textContent = '⚡';
+        statusText.textContent = 'Not Connected';
+        connectedOptions.classList.add('hidden');
+        providerSelection.style.opacity = '1';
+        providerSelection.style.pointerEvents = 'auto';
+        this.aiEnabled = false;
+    }
+};
+
+OSEApp.prototype.getProviderName = function() {
+    const names = {
+        'chatgpt': 'ChatGPT Plus',
+        'gemini': 'Gemini Advanced', 
+        'claude': 'Claude Pro'
+    };
+    return names[this.selectedAIProvider] || 'AI Service';
+};
+
+OSEApp.prototype.addSystemMessage = function(message) {
+    // Add system message to chat if chat screen is visible
+    if (!document.getElementById('aiChatScreen').classList.contains('hidden')) {
+        this.addAIMessage('🔔 ' + message, 'ai');
+    }
+};
+
+OSEApp.prototype.disconnectAI = function() {
+    if (confirm(`Disconnect from ${this.getProviderName()}?`)) {
+        this.aiCredentials = null;
+        this.selectedAIProvider = null;
+        this.updateAIConnectionStatus(false);
+        
+        // Remove selected state from provider buttons
+        document.querySelectorAll('.provider-btn').forEach(btn => {
+            btn.classList.remove('selected');
+        });
+        
+        // Hide chat screen if visible
+        document.getElementById('aiChatScreen').classList.add('hidden');
+        document.getElementById('aiSetupScreen').classList.remove('hidden');
+        
+        this.addSystemMessage('Disconnected from AI service');
+    }
+};
+
+OSEApp.prototype.reconnectAI = function() {
+    if (this.aiCredentials) {
+        const submitBtn = document.getElementById('aiConnectionStatus');
+        const originalHTML = submitBtn.innerHTML;
+        
+        // Show reconnecting state
+        const statusText = submitBtn.querySelector('.status-text');
+        statusText.textContent = 'Reconnecting...';
+        
+        this.connectToAI()
+            .then((success) => {
+                if (success) {
+                    this.addSystemMessage('Successfully reconnected!');
+                } else {
+                    throw new Error('Reconnection failed');
+                }
+            })
+            .catch((error) => {
+                console.error('Reconnection error:', error);
+                this.updateAIConnectionStatus(false);
+                alert('Failed to reconnect. Please try logging in again.');
+            });
+    } else {
+        alert('No saved credentials found. Please log in again.');
+        this.disconnectAI();
+    }
+};
+
 OSEApp.prototype.selectAIProvider = function(provider) {
     // Remove selected class from all buttons
     document.querySelectorAll('.provider-btn').forEach(btn => {
@@ -1513,6 +1679,12 @@ OSEApp.prototype.selectAIProvider = function(provider) {
 };
 
 OSEApp.prototype.setPracticeMode = function(mode) {
+    // Check if AI is connected first
+    if (!this.aiEnabled) {
+        alert('Please connect to an AI service first!');
+        return;
+    }
+    
     // Remove active class from all mode buttons
     document.querySelectorAll('.mode-btn').forEach(btn => {
         btn.classList.remove('active');
@@ -1528,10 +1700,10 @@ OSEApp.prototype.setPracticeMode = function(mode) {
     
     // Add initial AI message based on mode
     const modeMessages = {
-        'interview': "Hello! I'm here to help you practice job interviews. Let's start with a common question: Tell me about yourself.",
-        'travel': "Hi there! I'm your travel English partner. Let's practice some travel scenarios. Where would you like to go?",
-        'daily': "Hey! I'm excited to chat with you in English. How are you doing today?",
-        'business': "Good day! I'm here to help you practice business English. Let's discuss professional communication."
+        'interview': `Hello! I'm your ${this.getProviderName()} interview partner. Let's practice job interviews. Tell me about yourself.`,
+        'travel': `Hi there! I'm your ${this.getProviderName()} travel companion. Let's practice travel English. Where would you like to go?`,
+        'daily': `Hey! I'm your ${this.getProviderName()} conversation partner. Let's chat in English. How are you doing today?`,
+        'business': `Good day! I'm your ${this.getProviderName()} business coach. Let's practice professional communication.`
     };
     
     this.addAIMessage(modeMessages[mode], 'ai');
@@ -1719,6 +1891,14 @@ function toggleAIMic() {
 
 function toggleAISpeaker() {
     app.toggleAISpeaker();
+}
+
+function disconnectAI() {
+    app.disconnectAI();
+}
+
+function reconnectAI() {
+    app.reconnectAI();
 }
 
 // Cleanup on page unload

@@ -23,7 +23,7 @@
     
     <link rel="stylesheet" href="style.css">
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
-    <script src="firebase-config.js?v=1.3.0"></script>
+    <script src="firebase-config.js?v=1.3.1"></script>
 </head>
 <body>
     <div class="container">
@@ -225,10 +225,15 @@
                         <span class="status-icon">⚡</span>
                         <span class="status-text">Not Connected</span>
                     </div>
+                    <div id="aiConnectedOptions" class="connected-options hidden">
+                        <button class="btn secondary small" onclick="disconnectAI()">Disconnect</button>
+                        <button class="btn secondary small" onclick="reconnectAI()">Reconnect</button>
+                    </div>
                 </div>
                 
-                <div class="ai-providers">
+                <div class="ai-providers" id="aiProviderSelection">
                     <h3>Choose Your AI Provider</h3>
+                    <p class="provider-note">Select your AI subscription service to get started</p>
                     <div class="provider-buttons">
                         <button class="btn provider-btn" onclick="selectAIProvider('chatgpt')" id="chatgptBtn">
                             <div class="provider-icon">🧠</div>
@@ -300,6 +305,6 @@
         </div>
     </div>
 
-    <script src="app.js?v=1.3.0"></script>
+    <script src="app.js?v=1.3.1"></script>
 </body>
 </html>

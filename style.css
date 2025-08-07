@@ -844,4 +844,57 @@ header p {
     opacity: 0.7;
     margin-top: 5px;
 }
+
+/* Connected Options */
+.connected-options {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 15px;
+}
+
+.btn.small {
+    padding: 8px 16px;
+    font-size: 12px;
+    border-radius: 20px;
+}
+
+.provider-note {
+    text-align: center;
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 20px;
+}
+
+/* Loading states */
+.status-connecting {
+    background: #fff3e0;
+    color: #f57c00;
+    padding: 15px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.status-connecting .status-icon {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Form validation */
+.form-error {
+    color: #f44336;
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+.form-group input.error {
+    border-color: #f44336;
+    background: #ffebee;
+}
 }
