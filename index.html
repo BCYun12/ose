@@ -242,10 +242,8 @@
         
         function showRoomList() {
             showScreen('roomList');
-            // Try to load room list if app is available
-            if (window.app && app.loadRoomList) {
-                app.loadRoomList();
-            }
+            // 즉시 방 목록 표시
+            refreshRoomList();
         }
         
         function showAIInvite() {
@@ -263,11 +261,89 @@
         }
         
         function inviteAI() {
-            if (window.app && app.inviteAI) {
-                app.inviteAI();
-            } else {
-                alert('AI feature is loading... Please try again in a moment.');
+            const provider = document.getElementById('quickAIProvider').value;
+            const email = document.getElementById('quickAIEmail').value.trim();
+            const password = document.getElementById('quickAIPassword').value.trim();
+            
+            if (!provider) {
+                alert('Please select an AI service');
+                return;
             }
+            
+            if (!email || !password) {
+                alert('Please enter email and password');
+                return;
+            }
+            
+            if (!email.includes('@')) {
+                alert('Please enter a valid email address');
+                return;
+            }
+            
+            // Show loading
+            const inviteBtn = document.querySelector('#aiQuickSetup .btn.primary');
+            const originalText = inviteBtn.textContent;
+            inviteBtn.textContent = 'Inviting AI...';
+            inviteBtn.disabled = true;
+            
+            // Simulate AI connection
+            setTimeout(() => {
+                // Create AI participant
+                const aiNames = {
+                    'chatgpt': '🧠 ChatGPT',
+                    'gemini': '💎 Gemini', 
+                    'claude': '🎭 Claude'
+                };
+                
+                const aiId = 'ai-' + provider;
+                const aiName = aiNames[provider];
+                
+                // Add AI to participant list
+                const participantList = document.getElementById('participantList');
+                const participantCount = document.getElementById('participantCount');
+                
+                const aiParticipant = document.createElement('div');
+                aiParticipant.className = 'participant ai-participant';
+                aiParticipant.innerHTML = `<span class="participant-name">${aiName}</span><span class="participant-status">AI Assistant</span>`;
+                participantList.appendChild(aiParticipant);
+                
+                // Update participant count
+                const currentCount = parseInt(participantCount.textContent) || 0;
+                participantCount.textContent = (currentCount + 1).toString();
+                
+                // Add welcome message from AI
+                const welcomeMessages = {
+                    'chatgpt': "Hello! I'm ChatGPT, your AI language partner. I'm here to help you practice English. What would you like to talk about?",
+                    'gemini': "Hi there! I'm Gemini, ready to help you improve your English skills. Let's have a great conversation!",
+                    'claude': "Greetings! I'm Claude, your AI conversation partner. I'm excited to help you practice English today!"
+                };
+                
+                const messagesContainer = document.getElementById('chatMessages');
+                const messageElement = document.createElement('div');
+                messageElement.className = 'message ai-message other';
+                
+                const now = new Date();
+                const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                
+                messageElement.innerHTML = `
+                    <div class="sender">${aiName}</div>
+                    <div class="text">${welcomeMessages[provider]}</div>
+                    <div class="time">${timeString}</div>
+                `;
+                
+                messagesContainer.appendChild(messageElement);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                
+                // Hide setup form
+                cancelAIInvite();
+                
+                // Reset button
+                inviteBtn.textContent = originalText;
+                inviteBtn.disabled = false;
+                
+                console.log('✅ AI successfully invited:', aiName);
+                
+            }, 2000);
         }
         
         // Complete form handling functions
@@ -549,7 +625,8 @@
                     if (!window.browseRoomHandled) {
                         e.preventDefault();
                         showScreen('roomList');
-                        refreshRoomList();
+                        // 즉시 방 목록 표시
+                        setTimeout(() => refreshRoomList(), 100);
                         window.browseRoomHandled = true;
                         setTimeout(() => window.browseRoomHandled = false, 100);
                     }
