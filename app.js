@@ -9,16 +9,10 @@ class OSEApp {
         this.roomData = {};
         this.firebaseDB = new FirebaseDB();
         
-        // AI Voice Features
-        this.speechRecognition = null;
-        this.speechSynthesis = window.speechSynthesis;
-        this.isListening = false;
-        this.currentLanguage = 'en-US'; // Default to English
-        this.aiEnabled = false;
-        this.selectedAIProvider = null;
+        // AI Features (now integrated in rooms)
+        this.aiParticipant = null;
         this.aiCredentials = null;
-        this.practiceMode = 'daily';
-        this.aiSpeakerEnabled = true;
+        this.aiEnabled = false;
         
         this.init();
     }
@@ -234,11 +228,7 @@ class OSEApp {
             this.joinRoom();
         });
         
-        // AI Login Form
-        document.getElementById('aiLoginForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.handleAILogin();
-        });
+        // Note: AI login form removed - now handled in-room
         
         // Mobile-specific event listeners
         if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
@@ -285,13 +275,91 @@ class OSEApp {
         document.getElementById(screenId).classList.remove('hidden');
     }
     
-    showAIPartner() {
-        this.showScreen('aiPartner');
+    showAIInvite() {
+        document.getElementById('aiInviteButton').classList.add('hidden');
+        document.getElementById('aiQuickSetup').classList.remove('hidden');
     }
     
-    showAILogin() {
-        this.showScreen('aiLoginScreen');
+    cancelAIInvite() {
+        document.getElementById('aiInviteButton').classList.remove('hidden');
+        document.getElementById('aiQuickSetup').classList.add('hidden');
+        
+        // Clear form
+        document.getElementById('quickAIProvider').value = '';
+        document.getElementById('quickAIEmail').value = '';
+        document.getElementById('quickAIPassword').value = '';
     }
+    
+    inviteAI() {
+        const provider = document.getElementById('quickAIProvider').value;
+        const email = document.getElementById('quickAIEmail').value.trim();
+        const password = document.getElementById('quickAIPassword').value.trim();
+        
+        if (!provider || !email || !password) {
+            alert('Please fill in all fields');
+            return;
+        }
+        
+        if (!email.includes('@')) {
+            alert('Please enter a valid email address');
+            return;
+        }
+        
+        // Show loading
+        const inviteBtn = document.querySelector('#aiQuickSetup .btn.primary');
+        const originalText = inviteBtn.textContent;
+        inviteBtn.textContent = 'Inviting AI...';
+        inviteBtn.disabled = true;
+        
+        // Simulate AI connection
+        setTimeout(() => {
+            // Create AI participant
+            const aiNames = {
+                'chatgpt': '🧠 ChatGPT',
+                'gemini': '💎 Gemini', 
+                'claude': '🎭 Claude'
+            };
+            
+            const aiId = 'ai-' + provider;
+            const aiName = aiNames[provider];
+            
+            // Add AI to participants
+            this.aiParticipant = {
+                id: aiId,
+                name: aiName,
+                isAI: true,
+                provider: provider,
+                isHost: false
+            };
+            
+            this.roomData.participants.set(aiId, this.aiParticipant);
+            this.updateParticipantList();
+            
+            // Add welcome message from AI
+            const welcomeMessages = {
+                'chatgpt': \"Hello! I'm ChatGPT, your AI language partner. I'm here to help you practice English. What would you like to talk about?\",
+                'gemini': \"Hi there! I'm Gemini, ready to help you improve your English skills. Let's have a great conversation!\",
+                'claude': \"Greetings! I'm Claude, your AI conversation partner. I'm excited to help you practice English today!\"
+            };
+            
+            this.displayMessage(welcomeMessages[provider], aiName, false, aiId);
+            
+            // Hide setup form
+            this.cancelAIInvite();
+            
+            // Store AI credentials
+            this.aiCredentials = { provider, email, password };
+            this.aiEnabled = true;
+            
+            // Show success message  
+            this.addSystemMessage(`${aiName} joined the room!`);
+            
+            // Reset button
+            inviteBtn.textContent = originalText;
+            inviteBtn.disabled = false;
+            
+        }, 2000);
+    }"}
 
     showMainMenu() {
         this.showScreen('mainMenu');

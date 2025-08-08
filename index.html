@@ -23,7 +23,7 @@
     
     <link rel="stylesheet" href="style.css">
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
-    <script src="firebase-config.js?v=1.3.1"></script>
+    <script src="firebase-config.js?v=1.4.0"></script>
 </head>
 <body>
     <div class="container">
@@ -38,7 +38,6 @@
                 <button class="btn primary" onclick="showCreateRoom()">Create Room</button>
                 <button class="btn secondary" onclick="showJoinRoom()">Join Room</button>
                 <button class="btn secondary" onclick="showRoomList()">Browse Rooms</button>
-                <button class="btn ai-partner" onclick="showAIPartner()">🤖 AI Partner</button>
             </div>
         </div>
 
@@ -156,6 +155,31 @@
             <div class="participants">
                 <h4>Participants (<span id="participantCount">0</span>)</h4>
                 <div id="participantList"></div>
+                
+                <!-- AI Invite Section -->
+                <div class="ai-invite-section">
+                    <div id="aiInviteButton" class="ai-invite-wrapper">
+                        <button class="btn ai-invite" onclick="showAIInvite()">
+                            🤖 Invite AI Partner
+                        </button>
+                    </div>
+                    
+                    <div id="aiQuickSetup" class="ai-quick-setup hidden">
+                        <h5>Quick AI Setup</h5>
+                        <select id="quickAIProvider">
+                            <option value="">Select AI Service</option>
+                            <option value="chatgpt">🧠 ChatGPT Plus</option>
+                            <option value="gemini">💎 Gemini Advanced</option>
+                            <option value="claude">🎭 Claude Pro</option>
+                        </select>
+                        <input type="email" id="quickAIEmail" placeholder="Your email" style="margin-top: 8px;">
+                        <input type="password" id="quickAIPassword" placeholder="Your password" style="margin-top: 5px;">
+                        <div class="quick-ai-buttons">
+                            <button class="btn secondary small" onclick="cancelAIInvite()">Cancel</button>
+                            <button class="btn primary small" onclick="inviteAI()">Invite AI</button>
+                        </div>
+                    </div>
+                </div>
             </div>
             
             <div class="chat-container">
@@ -179,119 +203,6 @@
             </div>
         </div>
 
-        <!-- AI Login Screen -->
-        <div id="aiLoginScreen" class="screen hidden">
-            <h2>Connect to <span id="selectedAIName">ChatGPT Plus</span></h2>
-            
-            <div class="ai-login-form">
-                <div class="provider-info">
-                    <div class="provider-logo" id="aiProviderLogo">🧠</div>
-                    <p>Enter your <span id="aiProviderName">ChatGPT Plus</span> account details to connect.</p>
-                    <div class="subscription-note">
-                        <p>⚠️ You need an active subscription to use this feature</p>
-                    </div>
-                </div>
-
-                <form id="aiLoginForm">
-                    <div class="form-group">
-                        <label for="aiEmail">Email:</label>
-                        <input type="email" id="aiEmail" placeholder="Enter your email" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="aiPassword">Password:</label>
-                        <input type="password" id="aiPassword" placeholder="Enter your password" required>
-                    </div>
-
-                    <div class="security-note">
-                        <p>🔒 Your credentials are stored securely in your browser only</p>
-                    </div>
-                    
-                    <div class="button-group">
-                        <button type="button" class="btn secondary" onclick="showAIPartner()">Back</button>
-                        <button type="submit" class="btn primary">Connect AI</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- AI Partner Screen -->
-        <div id="aiPartner" class="screen hidden">
-            <h2>🤖 AI Language Partner</h2>
-            
-            <div id="aiSetupScreen" class="ai-setup">
-                <div class="ai-status">
-                    <div id="aiConnectionStatus" class="status-disconnected">
-                        <span class="status-icon">⚡</span>
-                        <span class="status-text">Not Connected</span>
-                    </div>
-                    <div id="aiConnectedOptions" class="connected-options hidden">
-                        <button class="btn secondary small" onclick="disconnectAI()">Disconnect</button>
-                        <button class="btn secondary small" onclick="reconnectAI()">Reconnect</button>
-                    </div>
-                </div>
-                
-                <div class="ai-providers" id="aiProviderSelection">
-                    <h3>Choose Your AI Provider</h3>
-                    <p class="provider-note">Select your AI subscription service to get started</p>
-                    <div class="provider-buttons">
-                        <button class="btn provider-btn" onclick="selectAIProvider('chatgpt')" id="chatgptBtn">
-                            <div class="provider-icon">🧠</div>
-                            <div class="provider-name">ChatGPT Plus</div>
-                            <div class="provider-desc">GPT-4 • $20/month</div>
-                        </button>
-                        <button class="btn provider-btn" onclick="selectAIProvider('gemini')" id="geminiBtn">
-                            <div class="provider-icon">💎</div>
-                            <div class="provider-name">Gemini Advanced</div>
-                            <div class="provider-desc">Gemini Ultra • $20/month</div>
-                        </button>
-                        <button class="btn provider-btn" onclick="selectAIProvider('claude')" id="claudeBtn">
-                            <div class="provider-icon">🎭</div>
-                            <div class="provider-name">Claude Pro</div>
-                            <div class="provider-desc">Claude 3 Opus • $20/month</div>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div id="aiChatScreen" class="ai-chat hidden">
-                <div class="practice-modes">
-                    <h3>Choose Practice Mode</h3>
-                    <div class="mode-buttons">
-                        <button class="btn mode-btn" onclick="setPracticeMode('interview')">💼 Job Interview</button>
-                        <button class="btn mode-btn" onclick="setPracticeMode('travel')">✈️ Travel English</button>
-                        <button class="btn mode-btn" onclick="setPracticeMode('daily')">💬 Daily Chat</button>
-                        <button class="btn mode-btn" onclick="setPracticeMode('business')">🏢 Business</button>
-                    </div>
-                </div>
-
-                <div class="language-selection">
-                    <h3>Practice Language</h3>
-                    <select id="practiceLanguage" onchange="setPracticeLanguage()">
-                        <option value="en">🇺🇸 English</option>
-                        <option value="ja">🇯🇵 Japanese</option>
-                        <option value="ko">🇰🇷 Korean</option>
-                    </select>
-                </div>
-
-                <div class="voice-chat">
-                    <div id="aiChatMessages" class="ai-messages"></div>
-                    <div class="voice-controls">
-                        <button id="aiMicBtn" class="btn voice-btn large" onclick="toggleAIMic()">
-                            <span id="aiMicIcon">🎤</span>
-                            <span id="aiMicText">Hold to Speak</span>
-                        </button>
-                        <button id="aiSpeakerBtn" class="btn voice-btn" onclick="toggleAISpeaker()">
-                            <span id="aiSpeakerIcon">🔊</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="button-group">
-                <button class="btn secondary" onclick="showMainMenu()">Back</button>
-            </div>
-        </div>
 
         <!-- Loading Screen -->
         <div id="loadingScreen" class="screen hidden">
@@ -305,6 +216,6 @@
         </div>
     </div>
 
-    <script src="app.js?v=1.3.1"></script>
+    <script src="app.js?v=1.4.0"></script>
 </body>
 </html>

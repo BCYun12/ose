@@ -897,4 +897,91 @@ header p {
     border-color: #f44336;
     background: #ffebee;
 }
+
+/* AI Invite Section in Chat Room */
+.ai-invite-section {
+    margin-top: 15px;
+    padding: 15px;
+    background: #f8f9ff;
+    border-radius: 10px;
+    border: 2px dashed #c5cae9;
+}
+
+.ai-invite {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 25px;
+    font-size: 14px;
+    font-weight: bold;
+    width: 100%;
+    transition: all 0.3s ease;
+}
+
+.ai-invite:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.ai-quick-setup {
+    margin-top: 15px;
+    padding: 15px;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+}
+
+.ai-quick-setup h5 {
+    margin: 0 0 10px 0;
+    color: #333;
+    font-size: 14px;
+}
+
+.ai-quick-setup select,
+.ai-quick-setup input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 13px;
+}
+
+.quick-ai-buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.quick-ai-buttons .btn {
+    flex: 1;
+    padding: 8px 16px;
+    font-size: 12px;
+}
+
+/* AI Participant Styling */
+.participant.ai-participant {
+    background: linear-gradient(135deg, #667eea20 0%, #764ba220 100%);
+    border: 1px solid #667eea50;
+}
+
+.participant.ai-participant .participant-name {
+    color: #667eea;
+    font-weight: bold;
+}
+
+.participant.ai-participant .participant-status {
+    color: #764ba2;
+}
+
+/* AI Messages in Chat */
+.message.ai-message {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.message.ai-message .message-sender {
+    color: #fff;
+    opacity: 0.9;
+}
 }
