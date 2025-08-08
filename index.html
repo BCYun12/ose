@@ -270,6 +270,251 @@
             }
         }
         
+        // Complete form handling functions
+        function handleCreateRoom() {
+            const hostName = document.getElementById('hostName').value.trim();
+            const roomTitle = document.getElementById('roomTitle').value.trim();
+            const roomLanguage = document.getElementById('roomLanguage').value;
+            const roomLevel = document.getElementById('roomLevel').value;
+            const maxParticipants = document.getElementById('maxParticipants').value;
+            
+            if (!hostName || !roomTitle || !roomLanguage || !roomLevel) {
+                alert('Please fill in all required fields');
+                return false;
+            }
+            
+            // Generate room ID
+            const roomId = 'room_' + Math.random().toString(36).substring(2, 8);
+            
+            // Show loading
+            showScreen('loadingScreen');
+            document.getElementById('loadingMessage').textContent = 'Creating room...';
+            document.getElementById('loadingStep').textContent = 'Setting up your room...';
+            
+            // Simulate room creation (will be replaced by full app.js when loaded)
+            setTimeout(() => {
+                // Store room data
+                const roomData = {
+                    id: roomId,
+                    title: roomTitle,
+                    language: roomLanguage,
+                    level: roomLevel,
+                    maxParticipants: parseInt(maxParticipants),
+                    hostName: hostName,
+                    participants: new Map(),
+                    created: new Date().toISOString()
+                };
+                
+                // Set current room info
+                document.getElementById('currentRoomTitle').textContent = roomTitle;
+                document.getElementById('currentRoomDetails').innerHTML = 
+                    `${roomLanguage.charAt(0).toUpperCase() + roomLanguage.slice(1)} • ${roomLevel.charAt(0).toUpperCase() + roomLevel.slice(1)} • Room ID: <span id="displayRoomId">${roomId}</span>`;
+                document.getElementById('displayRoomId').textContent = roomId;
+                
+                // Show host in participants
+                document.getElementById('participantList').innerHTML = 
+                    `<div class="participant host"><span class="participant-name">${hostName}</span><span class="participant-status">Host</span></div>`;
+                document.getElementById('participantCount').textContent = '1';
+                
+                // Go to chat room
+                showScreen('chatRoom');
+                
+                // If full app is loaded, initialize properly
+                if (window.app) {
+                    app.currentRoom = roomId;
+                    app.userName = hostName;
+                    app.isHost = true;
+                    app.roomData = roomData;
+                }
+            }, 1500);
+            
+            return false; // Prevent form submission
+        }
+        
+        function handleJoinRoom() {
+            const guestName = document.getElementById('guestName').value.trim();
+            const roomId = document.getElementById('roomId').value.trim();
+            
+            if (!guestName || !roomId) {
+                alert('Please enter your name and room ID');
+                return false;
+            }
+            
+            // Show loading
+            showScreen('loadingScreen');
+            document.getElementById('loadingMessage').textContent = 'Joining room...';
+            document.getElementById('loadingStep').textContent = 'Connecting to room...';
+            
+            // Simulate room join
+            setTimeout(() => {
+                // Set room info (mock data for now)
+                document.getElementById('currentRoomTitle').textContent = 'Practice Room';
+                document.getElementById('currentRoomDetails').innerHTML = 
+                    `English • Intermediate • Room ID: <span id="displayRoomId">${roomId}</span>`;
+                
+                // Show guest in participants  
+                document.getElementById('participantList').innerHTML = 
+                    `<div class="participant"><span class="participant-name">${guestName}</span><span class="participant-status">Guest</span></div>`;
+                document.getElementById('participantCount').textContent = '1';
+                
+                // Go to chat room
+                showScreen('chatRoom');
+                
+                // If full app is loaded, initialize properly
+                if (window.app) {
+                    app.currentRoom = roomId;
+                    app.userName = guestName;
+                    app.isHost = false;
+                }
+            }, 1500);
+            
+            return false; // Prevent form submission
+        }
+        
+        function handleManualJoin() {
+            const roomId = document.getElementById('manualRoomId').value.trim();
+            if (!roomId) {
+                alert('Please enter a Room ID');
+                return;
+            }
+            
+            // Set room ID and show join form
+            document.getElementById('roomId').value = roomId;
+            showScreen('joinRoom');
+        }
+        
+        function leaveRoom() {
+            if (confirm('Are you sure you want to leave the room?')) {
+                showScreen('mainMenu');
+                
+                // Clear room data
+                if (window.app) {
+                    app.currentRoom = null;
+                    app.userName = '';
+                    app.isHost = false;
+                    app.roomData = {};
+                }
+            }
+        }
+        
+        function sendMessage() {
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value.trim();
+            
+            if (!message) return;
+            
+            const messagesContainer = document.getElementById('chatMessages');
+            const messageElement = document.createElement('div');
+            messageElement.className = 'message own';
+            
+            const now = new Date();
+            const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            messageElement.innerHTML = `
+                <div class="sender">You</div>
+                <div class="text">${message}</div>
+                <div class="time">${timeString}</div>
+            `;
+            
+            messagesContainer.appendChild(messageElement);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            messageInput.value = '';
+            
+            // If full app is loaded, use its functionality
+            if (window.app && app.sendMessage) {
+                app.sendMessage();
+            }
+        }
+        
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+        
+        function refreshRoomList() {
+            // Mock room data for immediate functionality
+            const mockRooms = [
+                {
+                    id: 'room_demo1',
+                    title: 'English Practice for Beginners',
+                    language: 'English',
+                    level: 'Beginner',
+                    participants: 2,
+                    maxParticipants: 4,
+                    status: 'online',
+                    created: new Date(Date.now() - 300000).toISOString()
+                },
+                {
+                    id: 'room_demo2', 
+                    title: 'Korean Language Exchange',
+                    language: 'Korean',
+                    level: 'Intermediate',
+                    participants: 1,
+                    maxParticipants: 6,
+                    status: 'online',
+                    created: new Date(Date.now() - 600000).toISOString()
+                },
+                {
+                    id: 'room_demo3',
+                    title: 'Advanced English Conversation',
+                    language: 'English', 
+                    level: 'Advanced',
+                    participants: 3,
+                    maxParticipants: 8,
+                    status: 'online',
+                    created: new Date(Date.now() - 900000).toISOString()
+                }
+            ];
+            
+            const roomsContainer = document.getElementById('activeRooms');
+            const roomCount = document.getElementById('roomCount');
+            
+            if (mockRooms.length === 0) {
+                roomsContainer.innerHTML = '<div class="empty-rooms">No active rooms found. Create one to get started!</div>';
+                roomCount.textContent = 'No rooms';
+            } else {
+                roomCount.textContent = `${mockRooms.length} active room${mockRooms.length > 1 ? 's' : ''}`;
+                
+                roomsContainer.innerHTML = mockRooms.map(room => `
+                    <div class="room-card" onclick="joinSpecificRoom('${room.id}', '${room.title}')">
+                        <div class="room-header">
+                            <h4 class="room-title">${room.title}</h4>
+                            <span class="room-status ${room.status}">${room.status}</span>
+                        </div>
+                        <div class="room-details">
+                            ${room.language} • ${room.level} • ${room.participants}/${room.maxParticipants} participants
+                        </div>
+                        <div class="room-meta">
+                            <span class="room-participants">${room.participants} online</span>
+                            <span class="room-code">${room.id}</span>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            // If full app is loaded, use its functionality
+            if (window.app && app.loadRoomList) {
+                app.loadRoomList();
+            }
+        }
+        
+        function joinSpecificRoom(roomId, roomTitle) {
+            // Set room ID and title, then show join form
+            document.getElementById('roomId').value = roomId;
+            showScreen('joinRoom');
+            
+            // Pre-fill some info if available
+            const joinTitle = document.querySelector('#joinRoom h2');
+            if (joinTitle) {
+                joinTitle.textContent = `Join "${roomTitle}"`;
+            }
+        }
+        
+        function testFirebase() {
+            alert('Firebase connection test - this feature will be available when the full app loads.');
+        }
+        
         // Add event listeners as backup for onclick issues
         document.addEventListener('DOMContentLoaded', function() {
             // Add event listeners to main menu buttons
@@ -304,12 +549,72 @@
                     if (!window.browseRoomHandled) {
                         e.preventDefault();
                         showScreen('roomList');
-                        if (window.app && app.loadRoomList) {
-                            app.loadRoomList();
-                        }
+                        refreshRoomList();
                         window.browseRoomHandled = true;
                         setTimeout(() => window.browseRoomHandled = false, 100);
                     }
+                });
+            }
+            
+            // Add form event listeners
+            const createRoomForm = document.getElementById('createRoomForm');
+            if (createRoomForm) {
+                createRoomForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    handleCreateRoom();
+                });
+            }
+            
+            const joinRoomForm = document.getElementById('joinRoomForm');
+            if (joinRoomForm) {
+                joinRoomForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    handleJoinRoom();
+                });
+            }
+            
+            // Manual join button
+            const manualJoinBtn = document.querySelector('button[onclick="joinManualRoom()"]');
+            if (manualJoinBtn) {
+                manualJoinBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    handleManualJoin();
+                });
+            }
+            
+            // Send message button
+            const sendBtn = document.querySelector('button[onclick="sendMessage()"]');
+            if (sendBtn) {
+                sendBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    sendMessage();
+                });
+            }
+            
+            // Leave room button
+            const leaveBtn = document.querySelector('button[onclick="leaveRoom()"]');
+            if (leaveBtn) {
+                leaveBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    leaveRoom();
+                });
+            }
+            
+            // Refresh button
+            const refreshBtn = document.querySelector('button[onclick="refreshRoomList()"]');
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    refreshRoomList();
+                });
+            }
+            
+            // Test Firebase button  
+            const firebaseBtn = document.querySelector('button[onclick="testFirebase()"]');
+            if (firebaseBtn) {
+                firebaseBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    testFirebase();
                 });
             }
             
