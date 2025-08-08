@@ -216,6 +216,73 @@
         </div>
     </div>
 
-    <script src="app.js?v=1.4.2"></script>
+    <script>
+        // Inline essential functions to work immediately
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.add('hidden');
+            });
+            const targetScreen = document.getElementById(screenId);
+            if (targetScreen) {
+                targetScreen.classList.remove('hidden');
+            }
+        }
+        
+        function showMainMenu() {
+            showScreen('mainMenu');
+        }
+        
+        function showCreateRoom() {
+            showScreen('createRoom');
+        }
+        
+        function showJoinRoom() {
+            showScreen('joinRoom');
+        }
+        
+        function showRoomList() {
+            showScreen('roomList');
+            // Try to load room list if app is available
+            if (window.app && app.loadRoomList) {
+                app.loadRoomList();
+            }
+        }
+        
+        function showAIInvite() {
+            const button = document.getElementById('aiInviteButton');
+            const setup = document.getElementById('aiQuickSetup');
+            if (button) button.classList.add('hidden');
+            if (setup) setup.classList.remove('hidden');
+        }
+        
+        function cancelAIInvite() {
+            const button = document.getElementById('aiInviteButton');
+            const setup = document.getElementById('aiQuickSetup');
+            if (button) button.classList.remove('hidden');
+            if (setup) setup.classList.add('hidden');
+        }
+        
+        function inviteAI() {
+            if (window.app && app.inviteAI) {
+                app.inviteAI();
+            } else {
+                alert('AI feature is loading... Please try again in a moment.');
+            }
+        }
+        
+        // Load the full app.js
+        document.addEventListener('DOMContentLoaded', function() {
+            const script = document.createElement('script');
+            script.src = 'app.js?t=' + Date.now();
+            script.onload = function() {
+                console.log('✅ App.js loaded successfully');
+            };
+            script.onerror = function() {
+                console.error('❌ Failed to load app.js');
+                alert('Failed to load application. Please refresh the page.');
+            };
+            document.head.appendChild(script);
+        });
+    </script>
 </body>
 </html>
