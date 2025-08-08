@@ -241,9 +241,17 @@
         }
         
         function showRoomList() {
+            console.log('showRoomList 호출됨');
             showScreen('roomList');
-            // 즉시 방 목록 표시
+            // 즉시 방 목록 표시 - 지연을 없애고 바로 실행
             refreshRoomList();
+            // 백업으로 다시 한 번 실행
+            setTimeout(() => {
+                if (document.getElementById('roomCount').textContent === 'Loading...') {
+                    console.log('백업 refreshRoomList 실행');
+                    refreshRoomList();
+                }
+            }, 500);
         }
         
         function showAIInvite() {
@@ -474,12 +482,27 @@
         }
         
         function sendMessage() {
+            console.log('sendMessage 호출됨');
             const messageInput = document.getElementById('messageInput');
-            const message = messageInput.value.trim();
+            if (!messageInput) {
+                console.log('messageInput을 찾을 수 없음');
+                return;
+            }
             
-            if (!message) return;
+            const message = messageInput.value.trim();
+            console.log('입력된 메시지:', message);
+            
+            if (!message) {
+                console.log('빈 메시지');
+                return;
+            }
             
             const messagesContainer = document.getElementById('chatMessages');
+            if (!messagesContainer) {
+                console.log('chatMessages를 찾을 수 없음');
+                return;
+            }
+            
             const messageElement = document.createElement('div');
             messageElement.className = 'message own';
             
@@ -488,7 +511,7 @@
             
             messageElement.innerHTML = `
                 <div class="sender">You</div>
-                <div class="text">${message}</div>
+                <div class="text">${escapeHtml(message)}</div>
                 <div class="time">${timeString}</div>
             `;
             
@@ -496,10 +519,13 @@
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
             messageInput.value = '';
             
-            // If full app is loaded, use its functionality
-            if (window.app && app.sendMessage) {
-                app.sendMessage();
-            }
+            console.log('✅ 메시지 전송 완료');
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
         
         function handleKeyPress(event) {
@@ -509,6 +535,7 @@
         }
         
         function refreshRoomList() {
+            console.log('refreshRoomList 호출됨');
             // Mock room data for immediate functionality
             const mockRooms = [
                 {
@@ -589,6 +616,50 @@
         
         function testFirebase() {
             alert('Firebase connection test - this feature will be available when the full app loads.');
+        }
+        
+        // 음성 관련 전역 변수
+        let micEnabled = true;
+        let speakerEnabled = true;
+        
+        function toggleMic() {
+            console.log('toggleMic 호출됨');
+            micEnabled = !micEnabled;
+            
+            const micBtn = document.getElementById('micBtn');
+            const micIcon = document.getElementById('micIcon');
+            
+            if (micBtn) {
+                if (micEnabled) {
+                    micBtn.classList.remove('muted');
+                    micIcon.textContent = '🎤';
+                    console.log('마이크 켜짐');
+                } else {
+                    micBtn.classList.add('muted');
+                    micIcon.textContent = '🔇';
+                    console.log('마이크 꺼짐');
+                }
+            }
+        }
+        
+        function toggleSpeaker() {
+            console.log('toggleSpeaker 호출됨');
+            speakerEnabled = !speakerEnabled;
+            
+            const speakerBtn = document.getElementById('speakerBtn');
+            const speakerIcon = document.getElementById('speakerIcon');
+            
+            if (speakerBtn) {
+                if (speakerEnabled) {
+                    speakerBtn.classList.remove('muted');
+                    speakerIcon.textContent = '🔊';
+                    console.log('스피커 켜짐');
+                } else {
+                    speakerBtn.classList.add('muted');
+                    speakerIcon.textContent = '🔇';
+                    console.log('스피커 꺼짐');
+                }
+            }
         }
         
         // Add event listeners as backup for onclick issues
@@ -692,6 +763,23 @@
                 firebaseBtn.addEventListener('click', function(e) {
                     e.preventDefault();
                     testFirebase();
+                });
+            }
+            
+            // Voice control buttons
+            const micBtn = document.getElementById('micBtn');
+            if (micBtn) {
+                micBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    toggleMic();
+                });
+            }
+            
+            const speakerBtn = document.getElementById('speakerBtn');
+            if (speakerBtn) {
+                speakerBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    toggleSpeaker();
                 });
             }
             
