@@ -337,9 +337,9 @@ class OSEApp {
             
             // Add welcome message from AI
             const welcomeMessages = {
-                'chatgpt': \"Hello! I'm ChatGPT, your AI language partner. I'm here to help you practice English. What would you like to talk about?\",
-                'gemini': \"Hi there! I'm Gemini, ready to help you improve your English skills. Let's have a great conversation!\",
-                'claude': \"Greetings! I'm Claude, your AI conversation partner. I'm excited to help you practice English today!\"
+                'chatgpt': "Hello! I'm ChatGPT, your AI language partner. I'm here to help you practice English. What would you like to talk about?",
+                'gemini': "Hi there! I'm Gemini, ready to help you improve your English skills. Let's have a great conversation!",
+                'claude': "Greetings! I'm Claude, your AI conversation partner. I'm excited to help you practice English today!"
             };
             
             this.displayMessage(welcomeMessages[provider], aiName, false, aiId);
@@ -359,7 +359,7 @@ class OSEApp {
             inviteBtn.disabled = false;
             
         }, 2000);
-    }"}
+    }
 
     showMainMenu() {
         this.showScreen('mainMenu');
@@ -678,7 +678,7 @@ class OSEApp {
                 break;
 
             case 'chat_message':
-                this.displayMessage(data.message, data.sender, false);
+                this.displayMessage(data.message, data.sender, false, data.senderId);
                 break;
 
             case 'system_message':
@@ -703,10 +703,16 @@ class OSEApp {
         participantCount.textContent = this.roomData.participants.size;
 
         this.roomData.participants.forEach((participant, peerId) => {
-            const participantElement = document.createElement('div');
-            participantElement.className = `participant ${participant.isHost ? 'host' : ''}`;
-            participantElement.textContent = participant.name + (participant.isHost ? ' (Host)' : '');
-            participantList.appendChild(participantElement);
+            const participantDiv = document.createElement('div');
+            participantDiv.className = participant.isAI ? 'participant ai-participant' : 'participant';
+            
+            const status = participant.isHost ? 'Host' : (participant.isAI ? 'AI Assistant' : 'Guest');
+            
+            participantDiv.innerHTML = `
+                <span class="participant-name">${this.escapeHtml(participant.name)}</span>
+                <span class="participant-status">${status}</span>
+            `;
+            participantList.appendChild(participantDiv);
         });
     }
 
@@ -718,34 +724,61 @@ class OSEApp {
         if (!message) return;
 
         // Display own message
-        this.displayMessage(message, this.userName, true);
+        this.displayMessage(message, this.userName, true, this.peerId);
 
         // Send to all connections
         this.broadcastToAll({
             type: 'chat_message',
             message: message,
-            sender: this.userName
+            sender: this.userName,
+            senderId: this.peerId
         });
 
         messageInput.value = '';
     }
 
-    displayMessage(message, sender, isOwn) {
+    displayMessage(message, sender, isOwn, senderId = null) {
         const messagesContainer = document.getElementById('chatMessages');
         const messageElement = document.createElement('div');
-        messageElement.className = `message ${isOwn ? 'own' : 'other'}`;
+        
+        // Check if this is an AI message
+        const isAI = senderId && senderId.startsWith('ai-');
+        const messageClass = isOwn ? 'own' : (isAI ? 'ai-message other' : 'other');
+        
+        messageElement.className = `message ${messageClass}`;
 
         const now = new Date();
         const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
         messageElement.innerHTML = `
-            <div class="sender">${sender}</div>
+            <div class="sender">${this.escapeHtml(sender)}</div>
             <div class="text">${this.escapeHtml(message)}</div>
             <div class="time">${timeString}</div>
         `;
 
         messagesContainer.appendChild(messageElement);
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        
+        // Text-to-Speech for AI messages (if enabled)
+        if (isAI && this.speakerEnabled && 'speechSynthesis' in window) {
+            try {
+                const utterance = new SpeechSynthesisUtterance(message);
+                utterance.rate = 0.9;
+                utterance.pitch = 1.0;
+                utterance.volume = 0.8;
+                
+                // Set language based on AI provider if needed
+                if (senderId.includes('japanese')) {
+                    utterance.lang = 'ja-JP';
+                } else {
+                    utterance.lang = 'en-US';
+                }
+                
+                speechSynthesis.speak(utterance);
+            } catch (error) {
+                console.log('TTS error:', error);
+            }
+        }
     }
 
     addSystemMessage(message) {
@@ -1549,6 +1582,18 @@ function handleKeyPress(event) {
     if (event.key === 'Enter') {
         sendMessage();
     }
+}
+
+function showAIInvite() {
+    app.showAIInvite();
+}
+
+function cancelAIInvite() {
+    app.cancelAIInvite();
+}
+
+function inviteAI() {
+    app.inviteAI();
 }
 
 // Initialize app when page loads
