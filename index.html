@@ -270,8 +270,50 @@
             }
         }
         
-        // Load the full app.js
+        // Add event listeners as backup for onclick issues
         document.addEventListener('DOMContentLoaded', function() {
+            // Add event listeners to main menu buttons
+            const createBtn = document.querySelector('button[onclick="showCreateRoom()"]');
+            const joinBtn = document.querySelector('button[onclick="showJoinRoom()"]');
+            const browseBtn = document.querySelector('button[onclick="showRoomList()"]');
+            
+            if (createBtn) {
+                createBtn.addEventListener('click', function(e) {
+                    if (!window.createRoomHandled) {
+                        e.preventDefault();
+                        showScreen('createRoom');
+                        window.createRoomHandled = true;
+                        setTimeout(() => window.createRoomHandled = false, 100);
+                    }
+                });
+            }
+            
+            if (joinBtn) {
+                joinBtn.addEventListener('click', function(e) {
+                    if (!window.joinRoomHandled) {
+                        e.preventDefault();
+                        showScreen('joinRoom');
+                        window.joinRoomHandled = true;
+                        setTimeout(() => window.joinRoomHandled = false, 100);
+                    }
+                });
+            }
+            
+            if (browseBtn) {
+                browseBtn.addEventListener('click', function(e) {
+                    if (!window.browseRoomHandled) {
+                        e.preventDefault();
+                        showScreen('roomList');
+                        if (window.app && app.loadRoomList) {
+                            app.loadRoomList();
+                        }
+                        window.browseRoomHandled = true;
+                        setTimeout(() => window.browseRoomHandled = false, 100);
+                    }
+                });
+            }
+            
+            // Load the full app.js
             const script = document.createElement('script');
             script.src = 'app.js?t=' + Date.now();
             script.onload = function() {
